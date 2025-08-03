@@ -16,6 +16,7 @@ export default function Login() {
                 username,
                 password,
             })
+            console.log(response.data)
             console.log('User ID:', response.data.userId);
             console.log('Token:', response.data.token);
 
