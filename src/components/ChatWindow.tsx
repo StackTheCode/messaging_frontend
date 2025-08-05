@@ -9,8 +9,12 @@ interface ChatWindowProps {
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, selectedUser, currentUser, onSendMessage }) => {
+  // const [isTyping, setIsTyping] = useState(false)
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+
+
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -26,8 +30,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, selectedUser, 
   };
 
   const filteredMessages = messages.filter(
-    msg => (msg.senderId === currentUser && msg.recipientId === selectedUser?.id) || 
-           (msg.senderId === selectedUser?.id && msg.recipientId === currentUser)
+    msg => (msg.senderId === currentUser && msg.recipientId === selectedUser?.id) ||
+      (msg.senderId === selectedUser?.id && msg.recipientId === currentUser)
   );
 
   return (
@@ -38,18 +42,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages, selectedUser, 
             <h3 className="text-xl font-bold">Chatting with: {selectedUser.username}</h3>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            {filteredMessages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.senderId === currentUser ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-md p-3 rounded-xl shadow-md ${msg.senderId === currentUser ? 'bg-blue-500 text-white rounded-br-none' : 'bg-gray-200 text-gray-800 rounded-bl-none'}`}
-                >
-                  <p>{msg.content}</p>
-                </div>
-              </div>
-            ))}
+            {filteredMessages.map((msg, i) => {
+              const messageTime = msg.timestamp
+                ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : ''; return (
+                  <div
+                    key={i}
+                    className={`flex ${msg.senderId === currentUser ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-md p-3 rounded-xl shadow-md ${msg.senderId === currentUser ? 'bg-blue-500 text-white rounded-br-none' : 'bg-gray-200 text-gray-800 rounded-bl-none'}`}
+                    >
+                      <p>{msg.content}</p>
+                      {messageTime && (
+                      <span className={`text-xs mt-1 block ${msg.senderId === currentUser ? 'text-white' : 'text-gray-500'}`}>
+                        {messageTime}
+                      </span>
+                      )}
+                    </div>
+                  </div>
+                )
+            })}
             <div ref={messagesEndRef} />
           </div>
           <div className="p-4 border-t border-gray-300 bg-white">

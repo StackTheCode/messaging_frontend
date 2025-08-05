@@ -13,7 +13,7 @@ export class WsClient {
 
 
     this.client = new Client({    
-      webSocketFactory:() =>    new SockJS(`${WS_URL}?token=${this.token}`),
+      webSocketFactory:() => new SockJS(WS_URL),
       
       connectHeaders: {
         Authorization: `Bearer ${this.token}`,

@@ -3,6 +3,7 @@ export interface ChatMessage {
   recipientId?: number;
   content: string;
   messageType: 'CHAT' | 'JOIN' | 'LEAVE';
+  timestamp : string
 }
 
 export interface UserListProps {

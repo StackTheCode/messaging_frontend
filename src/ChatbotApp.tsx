@@ -55,6 +55,7 @@ const handleSendMessage = (content: string) => {
       recipientId: selectedUser.id,
       content: content,
       messageType: 'CHAT',
+      timestamp:new Date().toISOString()
     };
 
     setMessages(prevMessages => [...prevMessages, chatMessage]);
