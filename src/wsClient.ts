@@ -26,19 +26,24 @@ export class WsClient {
           this.onPrivateMessage
         );
         this.client.subscribe(`/topic/chat`, this.onPublicMessage);
+
+        this.client.subscribe(`/user/${this.userId}/queue/typing`,this.onTypingStatusMessage)
       },
     });
   }
 
   private onPrivateMessage: (message: IMessage) => void = () => {};
   private onPublicMessage: (message: IMessage) => void = () => {};
+  private onTypingStatusMessage: (message: IMessage) => void = () => {}; // NEW: Handler for typing status
 
   connect(
     onPrivate: (msg: IMessage) => void,
-    onPublic: (msg: IMessage) => void
+    onPublic: (msg: IMessage) => void,
+    onTypingStatus:(msg:IMessage) => void
   ) {
     this.onPrivateMessage = onPrivate;
     this.onPublicMessage = onPublic;
+    this.onTypingStatusMessage = onTypingStatus;
     this.client.activate();
   }
 
@@ -46,10 +51,10 @@ export class WsClient {
     this.client.deactivate();
   }
 
-  send(message: any) {
+  send(message: { destination: string; body: string }) {
     this.client.publish({
-      destination: '/app/chat.send',
-      body: JSON.stringify(message)
+      destination: message.destination,
+      body:message.body
     });
   }
 }

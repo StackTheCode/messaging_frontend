@@ -22,3 +22,9 @@ export interface User {
   id: number;
   username: string;
 }
+
+export interface TypingStatusMessage {
+  senderId: number;
+  recipientId: number;
+  typing: boolean;
+}
