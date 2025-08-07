@@ -95,21 +95,21 @@ const ChatbotApp = () => {
     });
   };
 
-  return (
-    <div className="flex min-h-screen bg-gray-100">
-      <UserList users={users}
-        selectedUser={selectedUser}
-        onSelectUser={setSelectedUser}
-        currentUser={userId} />
+    return (
+      <div className="flex min-h-screen bg-gray-100">
+        <UserList users={users}
+          selectedUser={selectedUser}
+          onSelectUser={setSelectedUser}
+          currentUser={userId} />
 
-      <ChatWindow messages={messages}
-        selectedUser={selectedUser}
-        currentUser={userId}
-        onSendMessage={handleSendMessage}
-        wsRef={wsRef}
-        isOtherUserTyping={isOtherUserTyping} />
-    </div>
-  )
+        <ChatWindow messages={messages}
+          selectedUser={selectedUser}
+          currentUser={userId}
+          onSendMessage={handleSendMessage}
+          wsRef={wsRef}
+          isOtherUserTyping={isOtherUserTyping} />
+      </div>
+    )
 }
 
 export default ChatbotApp;
