@@ -4,6 +4,7 @@ import './index.css'
 import ChatbotApp from './ChatbotApp.tsx'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Login from './pages/Login.tsx'
+import SignUp from './pages/SignUp.tsx'
 const isAuthenticated = () => {
   return !!localStorage.getItem('token'); // simple check
 };
@@ -14,7 +15,8 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path='/chat'
+        <Route path="/sign-up" element={<SignUp/>}/>
+        <Route path="/chat"
       element={isAuthenticated() ? <ChatbotApp/> : <Navigate to="/"/>} />
       </Routes>
 

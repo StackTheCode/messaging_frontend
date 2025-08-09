@@ -9,6 +9,11 @@ export default function Login() {
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
 
+const handleSignup =() =>{
+    navigate('/sign-up')
+}
+
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         try {
@@ -66,9 +71,13 @@ export default function Login() {
                     />
                 </div>
 
+                <div className='mt-3 text-sm'>
+                <h3>Don't have an account ? <a onClick={handleSignup} className='text-blue-400 font-medium underline cursor-pointer'>Sign-Up</a></h3>
+                </div>
+
                 <button
                     type="submit"
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 rounded-md transition"
+                    className="mt-3 w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 rounded-md transition"
                 >
                     Sign In
                 </button>

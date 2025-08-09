@@ -17,7 +17,9 @@ const ChatbotApp = () => {
   const [userId, setUserId] = useState<number | null>(null);
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
   const selectedUserRef = useRef<User | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
+  const debounceTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -45,7 +47,7 @@ const ChatbotApp = () => {
       const activeUser = selectedUserRef.current;
 
       if (activeUser && typingStatus.senderId === activeUser.id && typingStatus.senderId !== userId) {
-          console.log("Other user is typing:", typingStatus);
+        console.log("Other user is typing:", typingStatus);
 
         setIsOtherUserTyping(typingStatus.typing)
       }
@@ -53,17 +55,38 @@ const ChatbotApp = () => {
 
     wsClient.connect(onPrivateMessage, onPublicMessage, onTypingStatusMessage);
 
+    const fetchUsers = async (query: string) => {
+      try {
+        const url = query ? `http://localhost:8080/api/users/search?query=${encodeURIComponent(query)}` : 'http://localhost:8080/api/users'
+        const response = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${storedToken}` }
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP error ! Status:${response.status}`)
+        }
 
-    fetch('http://localhost:8080/api/users', {
-      headers: { 'Authorization': `Bearer ${storedToken}` }
-    })
-      .then(response => response.json())
-      .then(data => setUsers(data));
+        const data = await response.json();
+        setUsers(data);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      }
+    }
+
+    if(debounceTimeoutRef.current){
+      clearTimeout(debounceTimeoutRef.current)
+    }
+    debounceTimeoutRef.current = setTimeout(() => {
+      fetchUsers(searchQuery)
+    }, 300);
+
 
     return () => {
       wsClient.disconnect();
+      if(debounceTimeoutRef.current){
+        clearTimeout(debounceTimeoutRef.current)
+      }
     };
-  }, [ userId])
+  }, [userId,searchQuery])
 
   useEffect(() => {
     setIsOtherUserTyping(false)
@@ -95,21 +118,23 @@ const ChatbotApp = () => {
     });
   };
 
-    return (
-      <div className="flex min-h-screen bg-gray-100">
-        <UserList users={users}
-          selectedUser={selectedUser}
-          onSelectUser={setSelectedUser}
-          currentUser={userId} />
+  return (
+    <div className="flex min-h-screen bg-gray-100">
+      <UserList users={users}
+        selectedUser={selectedUser}
+        onSelectUser={setSelectedUser}
+        searchQuery = {searchQuery}
+        onSearchChange={setSearchQuery}
+        currentUser={userId} />
 
-        <ChatWindow messages={messages}
-          selectedUser={selectedUser}
-          currentUser={userId}
-          onSendMessage={handleSendMessage}
-          wsRef={wsRef}
-          isOtherUserTyping={isOtherUserTyping} />
-      </div>
-    )
+      <ChatWindow messages={messages}
+        selectedUser={selectedUser}
+        currentUser={userId}
+        onSendMessage={handleSendMessage}
+        wsRef={wsRef}
+        isOtherUserTyping={isOtherUserTyping} />
+    </div>
+  )
 }
 
 export default ChatbotApp;
