@@ -98,6 +98,34 @@ const ChatbotApp = () => {
 
   }, [selectedUser])
 
+  useEffect(() =>{
+    const fetchChatHistory = async() =>{
+      if(userId !== null && selectedUser !== null && token){
+        try {
+          const url = `http://localhost:8080/api/messages/history/${userId}/${selectedUser.id}`;
+          const response = await fetch(url,{
+            headers:{
+               'Authorization': `Bearer ${token}` 
+            }
+          })
+          if(!response.ok){
+            throw new Error(`HTTP error ! Status :${response.status}`)
+          }
+
+          const historyData : ChatMessage[] =await response.json();
+          setMessages(historyData);
+        } catch (error) {
+          console.error("Error fetching chat history: ", error);
+          setMessages([])
+        }
+      }
+      else{
+        setMessages([]);
+      }
+    }
+    fetchChatHistory();
+  },[userId, selectedUser,token])
+
   const handleSendMessage = (content: string) => {
     if (!content.trim() || !wsRef.current || userId === null || !selectedUser) return;
 
@@ -117,9 +145,31 @@ const ChatbotApp = () => {
       body: JSON.stringify(chatMessage),
     });
   };
+const handleClearHistory = async (user1Id: number, user2Id: number) => {
+    if (token) {
+      try {
+        const response = await fetch(`http://localhost:8080/api/messages/history/${user1Id}/${user2Id}`, {
+          method: 'DELETE', // Use DELETE method
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
 
+        if (!response.ok) {
+          throw new Error(`Failed to clear chat history: ${response.status}`);
+        }
+
+        // If successful, clear messages in local state
+        setMessages([]); 
+        console.log(`Chat history cleared between ${user1Id} and ${user2Id}`);
+        // Optionally, you might want to send a WebSocket message to the other user
+        // to inform them that the chat history has been cleared.
+        // wsRef.current?.send({ destination: '/app/chat.historyCleared', body: JSON.stringify({ user1Id, user2Id }) });
+      } catch (error) {
+        console.error("Error clearing chat history:", error);
+      }
+    }
+  };
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen bg-gray-100">
       <UserList users={users}
         selectedUser={selectedUser}
         onSelectUser={setSelectedUser}
@@ -132,7 +182,8 @@ const ChatbotApp = () => {
         currentUser={userId}
         onSendMessage={handleSendMessage}
         wsRef={wsRef}
-        isOtherUserTyping={isOtherUserTyping} />
+        isOtherUserTyping={isOtherUserTyping} 
+        onClearHistory={handleClearHistory}/>
     </div>
   )
 }

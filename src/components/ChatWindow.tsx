@@ -9,7 +9,9 @@ interface ChatWindowProps {
   currentUser: number | null;
   onSendMessage: (content: string) => void;
   wsRef: React.RefObject<WsClient | null>;
-  isOtherUserTyping: boolean
+  isOtherUserTyping: boolean,
+  onClearHistory: (user1Id: number, user2Id: number) => void;
+
 }
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
@@ -17,13 +19,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
   currentUser,
   onSendMessage,
   wsRef,
-  isOtherUserTyping
+  isOtherUserTyping,
+  onClearHistory
 }) => {
 
   const [input, setInput] = useState('');
   const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
-
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [menuOpen, setMenuOpen] = useState<boolean>(false)
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const sendTypingStatus = (typingStatus: boolean) => {
     if (wsRef.current && selectedUser && currentUser) {
@@ -56,24 +60,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
   useEffect(scrollToBottom, [messages]);
 
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
-    
+
     // Only send typing status if there's actual content
     if (e.target.value.trim()) {
       // Send typing started
       sendTypingStatus(true);
-      
+
       // Clear existing timeout
       if (typingTimeout) {
         clearTimeout(typingTimeout);
       }
-      
+
       // Set new timeout to stop typing after 1 second of inactivity
       const timeout = setTimeout(() => {
         sendTypingStatus(false);
       }, 1000);
-      
+
       setTypingTimeout(timeout);
     } else {
       // If input is empty, stop typing immediately
@@ -85,9 +89,18 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
     }
   };
 
+  const handleClearHistory = () => {
+    if (currentUser !== null && selectedUser !== null) {
+      const confirmClear = window.confirm("Are you sure you want to delete this chat history ? This action cannot be undone")
+      if (confirmClear) {
+        onClearHistory(currentUser, selectedUser.id)
+        setMenuOpen(false)
+      }
+    }
+  }
 
 
-    const handleSend = () => {
+  const handleSend = () => {
     if (input.trim()) {
       // Clear typing timeout and send stop typing
       if (typingTimeout) {
@@ -95,7 +108,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
         setTypingTimeout(null);
       }
       sendTypingStatus(false);
-      
+
       onSendMessage(input);
       setInput('');
     }
@@ -125,9 +138,30 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
     <div className="flex-1 flex flex-col">
       {selectedUser ? (
         <>
-          <div className="p-4 border-b border-gray-300 bg-white shadow-sm">
-            <h3 className="text-xl font-bold">Chatting with: {selectedUser.username}</h3>
-            {isOtherUserTyping && <span className='text-xl text-gray-500 z-30'>Typing...</span>}
+          <div className="p-4 border-b border-gray-300 bg-white shadow-sm flex items-center justify-between relative">
+            <div className="flex items-center">
+              <h3 className="text-xl font-bold">{selectedUser.username.toLocaleUpperCase()}</h3>
+              {isOtherUserTyping && <span className='text-xl text-gray-500 z-30'>Typing...</span>}
+            </div>
+            <div className='relative' ref={menuRef} >
+              <button onClick={() => setMenuOpen(!menuOpen)}
+                className='p-2 rounded-full hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500'
+                aria-label='Chat options'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-gray-600">
+                  <path fillRule="evenodd" d="M10.5 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1 -3 0Zm0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1 -3 0Zm0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1 -3 0Z" clipRule="evenodd" />
+                </svg>
+              </button>
+
+              {menuOpen && (
+                <div className='absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-md shadow-lg z-10'>
+                  <button className='block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100'
+                    onClick={handleClearHistory}
+                  >
+                    Clear History
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {filteredMessages.map((msg, i) => {
@@ -159,7 +193,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
               <input
                 type="text"
                 value={input}
-                onChange={handleInputChange} 
+                onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 onBlur={handleInputBlur}
                 className="flex-grow border border-gray-300 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
