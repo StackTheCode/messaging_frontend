@@ -12,7 +12,8 @@ export interface UserListProps {
   onSelectUser: (user: User) => void;
   currentUser: number | null;
   searchQuery:string;
-  onSearchChange:(query :string) => void
+  onSearchChange:(query :string) => void,
+  handleLogout:() => void;
 }
 
 

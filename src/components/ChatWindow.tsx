@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage, User } from '../types/types';
 import type { WsClient } from '../wsClient';
-import { useDebounce } from '../hooks/useDebounce';
 
 interface ChatWindowProps {
   messages: ChatMessage[];
