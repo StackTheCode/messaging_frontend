@@ -1,9 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 type Timer = ReturnType<typeof setTimeout> | null;
 
 export const useDebounce = <T extends unknown[]>(callback: (...args: T) => void, delay: number) => {
-const timeoutRef = useRef<Timer>(null)    
+const timeoutRef = useRef<Timer>(null);    
+const callbackRef = useRef(callback);
+
+useEffect(() =>{
+    callbackRef.current = callback;
+},[callback]);
 
 useEffect(() =>{
     return () =>{
@@ -13,13 +18,13 @@ useEffect(() =>{
     }
 },[]);
 
-return (...args :T)=>{
+return useCallback((...args :T)=>{
     if(timeoutRef.current){
         clearTimeout(timeoutRef.current)
     }
     timeoutRef.current = setTimeout(() =>{
-        callback(...args);
+        callbackRef.current(...args);
 
     },delay)
-}
+},[delay])
 }
