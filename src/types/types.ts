@@ -1,9 +1,24 @@
+import type { WsClient } from "../wsClient";
+
 export interface ChatMessage {
   senderId: number;
   recipientId?: number;
   content: string;
-  messageType: 'CHAT' | 'JOIN' | 'LEAVE';
-  timestamp : string
+  messageType: 'CHAT' | 'JOIN' | 'LEAVE' | "FILE";
+  timestamp : string,
+  filename?:string,
+}
+
+
+ export interface ChatWindowProps {
+  messages: ChatMessage[];
+  selectedUser: User | null;
+  currentUser: number | null;
+  onSendMessage: (content: string) => void;
+  wsRef: React.RefObject<WsClient | null>;
+  isOtherUserTyping: boolean,
+  onClearHistory: (user1Id: number, user2Id: number) => void;
+onNewFileMessage :(message :ChatMessage) => void;
 }
 
 export interface UserListProps {

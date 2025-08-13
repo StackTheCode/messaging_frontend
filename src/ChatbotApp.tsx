@@ -204,10 +204,13 @@ const ChatbotApp = () => {
     navigate('/')
   }, [navigate])
 
+  const handleNewFileMessage = useCallback((message: ChatMessage) => {
+    setMessages(prevMessages => [...prevMessages, message]);
+  }, []); // No dependencies needed as setMessages is stable
 
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50">
       <UserList users={users}
         selectedUser={selectedUser}
         onSelectUser={setSelectedUser}
@@ -223,7 +226,8 @@ const ChatbotApp = () => {
         onSendMessage={handleSendMessage}
         wsRef={wsRef}
         isOtherUserTyping={isOtherUserTyping}
-        onClearHistory={handleClearHistory} />
+        onClearHistory={handleClearHistory} 
+        onNewFileMessage={handleNewFileMessage}/>
     </div>
   )
 }
