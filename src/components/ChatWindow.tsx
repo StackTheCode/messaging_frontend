@@ -3,6 +3,7 @@ import type { ChatMessage } from '../types/types';
 import paperclip from '../assets/clip.svg'
 import fileIcon from '../assets/fileIcon.svg'
 import type { ChatWindowProps } from '../types/types';
+import { FaFileAlt } from 'react-icons/fa';
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
   selectedUser,
@@ -137,14 +138,19 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
       }
       const fileUrl = await response.text();
       const fileMessage: ChatMessage = {
+
         senderId: currentUser,
         recipientId: selectedUser.id,
         content: fileUrl,
-        filename: file.name,
+        fileName: file.name,
         messageType: "FILE",
         timestamp: new Date().toISOString()
       }
       onNewFileMessage(fileMessage)
+      wsRef.current.send({
+        destination: '/app/chat.send',
+        body: JSON.stringify(fileMessage),
+      });
     } catch (error) {
       console.error("File upload error:", error);
 
@@ -229,11 +235,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
                   >
                     {msg.messageType === 'FILE' ? (
                       <div className="flex flex-col items-start">
-                        {msg.filename && msg.filename.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+                        {msg.fileName && msg.fileName.match(/\.(jpeg|jpg|gif|png)$/i) ? (
                           
                           <img 
                             src={msg.content} 
-                            alt={msg.filename} 
+                            alt={msg.fileName} 
                             className="max-w-xs max-h-64 rounded-lg cursor-pointer object-cover" 
                             onClick={() => openImageModal(msg.content)}
                           />
@@ -245,13 +251,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
                             rel="noopener noreferrer" 
                             className={`flex items-center text-sm font-medium ${isSender ? 'text-white' : 'text-blue-600'} hover:underline`}
                           >
-                            <img src={fileIcon} className="inline-block mr-2 text-lg" />
-                            <span>{msg.filename || 'Unknown File'}</span>
+                              <FaFileAlt className="inline-block mr-2 text-lg" />
+                            <span>{msg.fileName || 'Unknown File'}</span>
                           </a>
                         )}
-                        {msg.filename && ( // Display original filename below image/link
+                        {msg.fileName && ( // Display original filename below image/link
                             <span className={`text-xs mt-1 ${isSender ? 'text-blue-200' : 'text-gray-500'} italic`}>
-                                {msg.filename}
+                                {msg.fileName}
                             </span>
                         )}
                       </div>

@@ -6,7 +6,7 @@ export interface ChatMessage {
   content: string;
   messageType: 'CHAT' | 'JOIN' | 'LEAVE' | "FILE";
   timestamp : string,
-  filename?:string,
+  fileName?:string,
 }
 
 
