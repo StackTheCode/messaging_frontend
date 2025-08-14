@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage } from '../types/types';
 import paperclip from '../assets/clip.svg'
-import fileIcon from '../assets/fileIcon.svg'
 import type { ChatWindowProps } from '../types/types';
 import { FaFileAlt } from 'react-icons/fa';
 
@@ -55,6 +54,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
   };
 
   useEffect(scrollToBottom, [messages]);
+
 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
