@@ -1,0 +1,18 @@
+# Ignore local development files
+.env
+.idea/
+.vscode/
+
+# Ignore project build artifacts and dependencies
+target/
+build/
+node_modules/
+
+# Ignore local dependency caches
+.gradle/
+.m2/
+
+# Ignore other common developer files
+.git/
+.gitignore
+.DS_Store

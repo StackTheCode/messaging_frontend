@@ -1,7 +1,7 @@
 import { Client, type IMessage } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
-const WS_URL = "http://localhost:8080/ws";
+const WS_URL = `${import.meta.env.VITE_API_URL}/ws`;
 export class WsClient {
    private token: string;
   private userId: number;

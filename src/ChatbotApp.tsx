@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 
 
 const ChatbotApp = () => {
+  
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -83,10 +84,12 @@ const ChatbotApp = () => {
 
   // --- Fetching Users (with Debounced Search) ---
   const fetchUsers = useCallback(async (query: string) => {
+ 
     if (!token) return;
 
     try {
-      const url = query ? `http://localhost:8080/api/users/search?query=${encodeURIComponent(query)}` : 'http://localhost:8080/api/users';
+      
+      const url = query ? `${import.meta.env.VITE_API_URL}/api/users/search?query=${encodeURIComponent(query)}` : `${import.meta.env.VITE_API_URL}/api/users`;
       const response = await fetch(url, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -113,10 +116,13 @@ const ChatbotApp = () => {
 
   // --- Fetching Chat History ---
   useEffect(() => {
+    
     const fetchChatHistory = async () => {
+      const apiUrl =import.meta.env.VITE_API_URL
+
       if (userId !== null && selectedUser !== null && token) {
         try {
-          const url = `http://localhost:8080/api/messages/history/${userId}/${selectedUser.id}`;
+          const url = `${apiUrl}/api/messages/history/${userId}/${selectedUser.id}`;
           const response = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
@@ -172,7 +178,7 @@ const ChatbotApp = () => {
   const handleClearHistory = useCallback(async (user1Id: number, user2Id: number) => {
     if (token) {
       try {
-        const response = await fetch(`http://localhost:8080/api/messages/history/${user1Id}/${user2Id}`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages/history/${user1Id}/${user2Id}`, {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` }
         });
