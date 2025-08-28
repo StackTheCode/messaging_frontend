@@ -19,7 +19,8 @@ export interface ChatMessage {
   isOtherUserTyping: boolean,
   onClearHistory: (user1Id: number, user2Id: number) => void;
 onNewFileMessage :(message :ChatMessage) => void;
-}
+ showUserList: boolean;
+  setShowUserList: (show: boolean) => void;}
 
 export interface UserListProps {
   users: User[];

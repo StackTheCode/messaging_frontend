@@ -8,6 +8,7 @@ import { ChatWindow } from './components/ChatWindow';
 import type { IMessage } from '@stomp/stompjs';
 import { useDebounce } from './hooks/useDebounce';
 import { useNavigate } from 'react-router-dom';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'; // Import the new components
 
 
 const ChatbotApp = () => {
@@ -23,6 +24,9 @@ const ChatbotApp = () => {
   const selectedUserRef = useRef<User | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
+ 
+ // Mobile responsiveness state
+  const [showUserList, setShowUserList] = useState(true);
   // --- Initial Setup (Token/UserId from localStorage) ---
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -196,6 +200,7 @@ const ChatbotApp = () => {
   }, [token]);
 
 
+
   const handleLogOut = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
@@ -216,25 +221,51 @@ const ChatbotApp = () => {
 
 
   return (
-    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50">
-      <UserList users={users}
-        selectedUser={selectedUser}
-        onSelectUser={setSelectedUser}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        currentUser={userId} 
-        handleLogout={handleLogOut}/>
+   <div className="flex h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50">
+            <PanelGroup direction="horizontal">
+                {/* The UserList Panel */}
+                <Panel
+                    className={`${showUserList ? 'flex' : 'hidden'} lg:flex w-full lg:w-auto flex-col`}
+                    defaultSize={25}
+                    minSize={15}
+                >
+                    <UserList
+                        users={users}
+                        selectedUser={selectedUser}
+                        onSelectUser={(user) => {
+                            setSelectedUser(user);
+                            setShowUserList(false);
+                        }}
+                        searchQuery={searchQuery}
+                        onSearchChange={setSearchQuery}
+                        currentUser={userId}
+                        handleLogout={handleLogOut}
+                    />
+                </Panel>
+                
+                {/* The Resize Handle, only visible on large screens */}
+                <PanelResizeHandle className="w-2 bg-gray-300 hover:bg-gray-400 transition-colors duration-200 cursor-col-resize hidden lg:block" />
 
-
-      <ChatWindow messages={messages}
-        selectedUser={selectedUser}
-        currentUser={userId}
-        onSendMessage={handleSendMessage}
-        wsRef={wsRef}
-        isOtherUserTyping={isOtherUserTyping}
-        onClearHistory={handleClearHistory} 
-        onNewFileMessage={handleNewFileMessage}/>
-    </div>
+                {/* The ChatWindow Panel */}
+                <Panel
+                    className={`${!showUserList ? 'flex' : 'hidden'} lg:flex flex-1`}
+                    minSize={50}
+                >
+                    <ChatWindow
+                        messages={messages}
+                        selectedUser={selectedUser}
+                        currentUser={userId}
+                        onSendMessage={handleSendMessage}
+                        wsRef={wsRef}
+                        isOtherUserTyping={isOtherUserTyping}
+                        onClearHistory={handleClearHistory}
+                        onNewFileMessage={handleNewFileMessage}
+                        showUserList={showUserList}
+                        setShowUserList={setShowUserList}
+                    />
+                </Panel>
+            </PanelGroup>
+        </div>
   )
 }
 

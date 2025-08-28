@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage } from '../types/types';
-import paperclip from '../assets/clip.svg'
 import type { ChatWindowProps } from '../types/types';
-import { FaFileAlt } from 'react-icons/fa';
+import { ArrowLeft, FileText, MoreVertical, Paperclip, Send, X } from 'lucide-react';
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
   selectedUser,
@@ -11,7 +10,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
   wsRef,
   isOtherUserTyping,
   onClearHistory,
-  onNewFileMessage
+  onNewFileMessage,
+   showUserList,
+  setShowUserList,
 }) => {
 
   const [input, setInput] = useState('');
@@ -183,7 +184,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
       handleSend();
     }
   };
-
+// Mobile navigation function
+  const handleBackToUsers = () => {
+    setShowUserList(true);
+  };
 
   const filteredMessages = messages.filter(
     msg => (msg.senderId === currentUser && msg.recipientId === selectedUser?.id) ||
@@ -191,26 +195,50 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
   );
 
   return (
-    <div className="flex-1 flex flex-col">
+     <div className="flex-1 flex flex-col w-full lg:w-3/4">
       {selectedUser ? (
         <>
-          <div className="p-6 border-b border-white/20 bg-white/10 backdrop-blur-md flex items-center justify-between relative">
+          <div className="p-4 lg:p-6 border-b border-white/20 bg-white/10 backdrop-blur-md flex items-center justify-between relative">
             <div className="flex items-center space-x-3">
-              <h3 className="text-xl font-light tracking-wide text-gray-700">{selectedUser.username.toLocaleUpperCase()}</h3>
-              {isOtherUserTyping && <span className='text-lg text-gray-400 font-light'>Typing...</span>}
+              {/* Back button for mobile */}
+              <button
+                onClick={handleBackToUsers}
+                className="lg:hidden p-2 rounded-full hover:bg-white/20 transition-all duration-300"
+                aria-label="Back to users"
+              >
+                <ArrowLeft className="h-5 w-5 text-gray-600" />
+              </button>
+              
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0 lg:hidden">
+                  <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-gray-500/80 text-white text-sm font-light">
+                    {selectedUser.username.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-lg lg:text-xl font-light tracking-wide text-gray-700">
+                    {selectedUser.username.toLocaleUpperCase()}
+                  </h3>
+                  {isOtherUserTyping && (
+                    <span className='text-sm lg:text-lg text-gray-400 font-light'>Typing...</span>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className='relative' ref={menuRef} >
-              <button onClick={() => setMenuOpen(!menuOpen)}
+            
+            <div className='relative' ref={menuRef}>
+              <button 
+                onClick={() => setMenuOpen(!menuOpen)}
                 className='p-2 rounded-2xl hover:bg-white/20 focus:outline-none focus:ring-1 focus:ring-gray-200/30 transition-all duration-300'
-                aria-label='Chat options'>
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6 text-gray-600">
-                  <path fillRule="evenodd" d="M10.5 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1 -3 0Zm0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1 -3 0Zm0 6a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1 -3 0Z" clipRule="evenodd" />
-                </svg>
+                aria-label='Chat options'
+              >
+                <MoreVertical className="w-5 h-5 lg:w-6 lg:h-6 text-gray-600" />
               </button>
 
               {menuOpen && (
-                <div className='absolute right-0 mt-2 w-48 bg-white/30 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg shadow-black/5 z-10'>
-                  <button className='block w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-white/20 rounded-2xl font-light transition-all duration-300'
+                <div className='absolute right-0 mt-2 w-48 bg-white/90 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg shadow-black/5 z-10'>
+                  <button 
+                    className='block w-full text-left px-4 py-3 text-sm text-gray-800 hover:bg-white/20 rounded-2xl font-light transition-all duration-300'
                     onClick={handleClearHistory}
                   >
                     Clear History
@@ -219,111 +247,137 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
               )}
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          
+          <div className="flex-1 overflow-y-auto p-3 lg:p-6 space-y-3 lg:space-y-4">
             {filteredMessages.map((msg, i) => {
               const messageTime = msg.timestamp
                 ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 : '';
               const isSender = msg.senderId === currentUser;
+              
               return (
                 <div
                   key={i}
                   className={`flex ${msg.senderId === currentUser ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
-                    className={`max-w-md p-3 rounded-xl shadow-md ${isSender ? 'bg-blue-500 text-white rounded-br-none' : 'bg-gray-200 text-gray-800 rounded-bl-none'}`}
+                    className={`max-w-xs sm:max-w-sm lg:max-w-md xl:max-w-lg p-3 rounded-xl shadow-md ${
+                      isSender 
+                        ? 'bg-blue-500 text-white rounded-br-none' 
+                        : 'bg-gray-200 text-gray-800 rounded-bl-none'
+                    }`}
                   >
                     {msg.messageType === 'FILE' ? (
                       <div className="flex flex-col items-start">
                         {msg.fileName && msg.fileName.match(/\.(jpeg|jpg|gif|png)$/i) ? (
-                          
                           <img 
                             src={msg.content} 
                             alt={msg.fileName} 
-                            className="max-w-xs max-h-64 rounded-lg cursor-pointer object-cover" 
+                            className="max-w-full max-h-48 lg:max-h-64 rounded-lg cursor-pointer object-cover" 
                             onClick={() => openImageModal(msg.content)}
                           />
                         ) : (
-                          
                           <a 
                             href={msg.content} 
                             target="_blank" 
                             rel="noopener noreferrer" 
-                            className={`flex items-center text-sm font-medium ${isSender ? 'text-white' : 'text-blue-600'} hover:underline`}
+                            className={`flex items-center text-sm font-medium ${
+                              isSender ? 'text-white' : 'text-blue-600'
+                            } hover:underline`}
                           >
-                              <FaFileAlt className="inline-block mr-2 text-lg" />
-                            <span>{msg.fileName || 'Unknown File'}</span>
+                            <FileText className="inline-block mr-2 text-base lg:text-lg flex-shrink-0" />
+                            <span className="truncate">{msg.fileName || 'Unknown File'}</span>
                           </a>
                         )}
-                        {msg.fileName && ( // Display original filename below image/link
-                            <span className={`text-xs mt-1 ${isSender ? 'text-blue-200' : 'text-gray-500'} italic`}>
-                                {msg.fileName}
-                            </span>
+                        {msg.fileName && (
+                          <span className={`text-xs mt-1 ${
+                            isSender ? 'text-blue-200' : 'text-gray-500'
+                          } italic truncate max-w-full`}>
+                            {msg.fileName}
+                          </span>
                         )}
                       </div>
                     ) : (
-                      // Original logic for text messages
-                      <p className='font-normal'>{msg.content}</p>
+                      <p className='font-normal text-sm lg:text-base break-words'>{msg.content}</p>
                     )}
 
                     {messageTime && (
-                      <span className={`text-xs mt-1 block ${isSender ? 'text-white' : 'text-gray-500'}`}>
+                      <span className={`text-xs mt-1 block ${
+                        isSender ? 'text-white' : 'text-gray-500'
+                      }`}>
                         {messageTime}
                       </span>
                     )}
                   </div>
                 </div>
-              )
+              );
             })}
             <div ref={messagesEndRef} />
           </div>
-          <div className="p-4 border-t border-white/20 bg-white/10 backdrop-blur-md">
-            <div className="flex gap-3">
+          
+          <div className="p-3 lg:p-4 border-t border-white/20 bg-white/10 backdrop-blur-md">
+            <div className="flex gap-2 lg:gap-3">
               <input
                 type="file"
                 id='file-upload'
                 style={{ display: 'none' }}
-                onChange={handleFileChange} />
-              <label htmlFor="file-upload"
-                className="p-3 bg-gray-200/50 hover:bg-gray-300/50 rounded-full cursor-pointer transition-all duration-300 flex-shrink-0">
-                <img src={paperclip} className="h-5 w-5 text-gray-700" />
+                onChange={handleFileChange} 
+              />
+              <label 
+                htmlFor="file-upload"
+                className="p-2 lg:p-3 bg-gray-200/50 hover:bg-gray-300/50 rounded-full cursor-pointer transition-all duration-300 flex-shrink-0"
+              >
+                <Paperclip className="h-4 w-4 lg:h-5 lg:w-5 text-gray-700" />
               </label>
+              
               <input
                 type="text"
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 onBlur={handleInputBlur}
-                className="flex-grow bg-white/30 backdrop-blur-sm border border-white/20 rounded-3xl px-5 py-3 focus:outline-none focus:ring-1 focus:ring-gray-200 focus:border-transparent transition-all duration-300 text-gray-700 placeholder-gray-400 font-md"
+                className="flex-grow bg-white/30 backdrop-blur-sm border border-white/20 rounded-2xl lg:rounded-3xl px-3 lg:px-5 py-2 lg:py-3 focus:outline-none focus:ring-1 focus:ring-gray-200 focus:border-transparent transition-all duration-300 text-gray-700 placeholder-gray-400 text-sm lg:text-base font-md"
                 placeholder={`Message ${selectedUser.username}...`}
               />
+              
               <button
                 onClick={handleSend}
-                className="px-8 py-3 bg-blue-500 cursor-pointer backdrop-blur-sm text-white rounded-3xl hover:bg-blue-600 transition-all duration-300 font-light tracking-wide border border-gray-700/30"
+                className="px-4 lg:px-8 py-2 lg:py-3 bg-blue-500 cursor-pointer backdrop-blur-sm text-white rounded-2xl lg:rounded-3xl hover:bg-blue-600 transition-all duration-300 font-light tracking-wide border border-gray-700/30 text-sm lg:text-base"
               >
-                Send
+                <span className="hidden sm:inline">Send</span>
+                <Send className="h-4 w-4 sm:hidden" />
               </button>
             </div>
           </div>
         </>
       ) : (
-        <div className="flex-1 flex items-center justify-center text-gray-400 text-lg font-light tracking-wide">
-          Select a user to start a conversation.
+        <div className="flex-1 flex items-center justify-center text-gray-400 text-base lg:text-lg font-light tracking-wide p-4">
+          <div className="text-center">
+            <div className="mb-4">
+              <div className="w-12 h-12 lg:w-16 lg:h-16 mx-auto mb-4 rounded-full bg-gray-200/50 flex items-center justify-center">
+                <svg className="w-6 h-6 lg:w-8 lg:h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+              </div>
+            </div>
+            <p className="px-4">Select a user to start a conversation.</p>
+          </div>
         </div>
       )}
-        {imageModalOpen && (
+      
+      {imageModalOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4"
           onClick={closeImageModal} 
         >
-          <div className="relative p-4 bg-white rounded-lg max-w-3xl max-h-full overflow-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="relative p-2 lg:p-4 bg-white rounded-lg max-w-full max-h-full overflow-auto" onClick={(e) => e.stopPropagation()}>
             <button 
               onClick={closeImageModal} 
-              className="absolute top-2 right-2 text-gray-800 text-2xl font-bold hover:text-gray-600"
+              className="absolute top-1 right-1 lg:top-2 lg:right-2 p-1 rounded-full bg-black/50 text-white hover:bg-black/70 transition-all duration-200 z-10"
             >
-              &times;
+              <X className="w-4 h-4 lg:w-5 lg:h-5" />
             </button>
-            <img src={modalImageUrl} alt="Full size" className="max-w-full max-h-[80vh] object-contain" />
+            <img src={modalImageUrl} alt="Full size" className="max-w-full max-h-[85vh] lg:max-h-[80vh] object-contain" />
           </div>
         </div>
       )}
