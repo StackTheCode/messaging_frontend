@@ -9,6 +9,7 @@ import type { IMessage } from '@stomp/stompjs';
 import { useDebounce } from './hooks/useDebounce';
 import { useNavigate } from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'; // Import the new components
+import { TaskProvider } from './contexts/TaskContext';
 
 
 const ChatbotApp = () => {
@@ -162,6 +163,7 @@ const ChatbotApp = () => {
     if (!content.trim() || !wsRef.current || userId === null || !selectedUser) return;
 
     const chatMessage: ChatMessage = {
+        id: Date.now(),
       senderId: userId,
       recipientId: selectedUser.id,
       content: content,
@@ -221,6 +223,7 @@ const ChatbotApp = () => {
 
 
   return (
+        <TaskProvider>
    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50">
             <PanelGroup direction="horizontal">
                 {/* The UserList Panel */}
@@ -266,6 +269,7 @@ const ChatbotApp = () => {
                 </Panel>
             </PanelGroup>
         </div>
+        </TaskProvider> 
   )
 }
 
