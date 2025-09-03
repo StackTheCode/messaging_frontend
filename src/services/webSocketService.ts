@@ -6,6 +6,7 @@ import type { IMessage } from '@stomp/stompjs';
 // Change the callback types to use IMessage (what STOMP actually provides)
 export type MessageCallback = (message: IMessage) => void;
 export type TypingCallback = (message: IMessage) => void;
+export type DeleteCallback = (message: IMessage) => void;
 
 export class WebSocketService {
   private wsClient: WsClient | null = null;
@@ -16,15 +17,22 @@ export class WebSocketService {
     userId: number,
     onPrivateMessage: MessageCallback,
     onPublicMessage: MessageCallback,
-    onTypingStatus: TypingCallback
+    onTypingStatus: TypingCallback,
+    onDeleteMessage?: DeleteCallback
   ): void {
     this.disconnect();
-    
+
     this.currentUserId = userId;
     this.wsClient = new WsClient(token, userId);
 
     // Pass the callbacks directly - no JSON parsing here since your app already does it
-    this.wsClient.connect(onPrivateMessage, onPublicMessage, onTypingStatus);
+    this.wsClient.connect(
+      onPrivateMessage,
+      onPublicMessage,
+      onTypingStatus,
+      onDeleteMessage);
+
+
   }
 
   disconnect(): void {
@@ -43,7 +51,7 @@ export class WebSocketService {
 
   sendTypingStatus(recipientId: number, typing: boolean): void {
     if (!this.currentUserId) return;
-    
+
     const payload = {
       senderId: this.currentUserId,
       recipientId,
@@ -54,7 +62,13 @@ export class WebSocketService {
       destination: '/app/chat.typing',
       body: JSON.stringify(payload),
     });
+
   }
+  subscribeToDeleteMessages(onDeleteMessage: (msg: IMessage) => void) {
+    this.wsClient?.subscribe('/topic/delete', onDeleteMessage);
+  }
+
+
 }
 
 export const webSocketService = new WebSocketService();

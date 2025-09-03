@@ -2,9 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import type { ChatMessage, User, TypingStatusMessage } from '../types/types';
 import { userService } from './userService';
 import { messageService } from '../services/messageService';
-import { webSocketService } from '../services/webSocketService';
 import { useDebounce } from './useDebounce';
-import type { IMessage } from '@stomp/stompjs';
 
 export const useChat = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -32,35 +30,12 @@ export const useChat = () => {
   }, []);
 
   // Keep selectedUserRef in sync
-useEffect(() => {
-  if (!token || !userId) return;
+  useEffect(() => {
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
-  const handlePrivateMessage = (message: IMessage) => {
-    // STOMP's IMessage object has a 'body' which is a string
-    // Parse the JSON string to get your ChatMessage object
-    const chatMessage: ChatMessage = JSON.parse(message.body);
-    setMessages(prev => [...prev, chatMessage]);
-  };
-
-  const handlePublicMessage = (message: IMessage) => {
-    const chatMessage: ChatMessage = JSON.parse(message.body);
-    setMessages(prev => [...prev, chatMessage]);
-  };
-
-  const handleTypingStatus = (typingStatus: IMessage) => {
-    const activeUser = selectedUserRef.current;
-    const typingPayload: TypingStatusMessage = JSON.parse(typingStatus.body);
-    if (activeUser && typingPayload.senderId === activeUser.id && typingPayload.senderId !== userId) {
-      setIsOtherUserTyping(typingPayload.typing);
-    }
-  };
-
-  webSocketService.connect(token, userId, handlePrivateMessage, handlePublicMessage, handleTypingStatus);
-
-  return () => {
-    webSocketService.disconnect();
-  };
-}, [token, userId]);
+  // REMOVED: Duplicate WebSocket connection
+  // The main ChatbotApp now handles the WebSocket connection
 
   // Fetch users with debounced search
   const fetchUsers = useCallback(async (query: string) => {
@@ -107,12 +82,11 @@ useEffect(() => {
     setIsOtherUserTyping(false);
   }, [selectedUser]);
 
-  // Handlers
+  // Handlers - SIMPLIFIED (no WebSocket management here)
   const handleSendMessage = useCallback((content: string) => {
     if (!content.trim() || !userId || !selectedUser) return;
 
     const chatMessage: ChatMessage = {
-      // id: Date.now(),
       senderId: userId,
       recipientId: selectedUser.id,
       content: content,
@@ -120,8 +94,11 @@ useEffect(() => {
       timestamp: new Date().toISOString()
     };
 
+    // Add to local state (this is now just for this hook's consumers)
     setMessages(prev => [...prev, chatMessage]);
-    webSocketService.sendMessage(chatMessage);
+    
+    // Note: WebSocket sending should be handled by the main app
+    // webSocketService.sendMessage(chatMessage);
   }, [userId, selectedUser]);
 
   const handleClearHistory = useCallback(async (user1Id: number, user2Id: number) => {
@@ -136,6 +113,16 @@ useEffect(() => {
     }
   }, []);
 
+  // MOVED: Delete handler moved to main ChatbotApp
+  // This is just a placeholder that calls the parent's delete handler
+  const handleDeleteMessage = useCallback(async (messageId: number) => {
+    // This should be handled by the parent component that manages WebSocket
+    console.log('Delete message called in useChat hook - this should be handled by parent');
+    
+    // For local state management only
+    setMessages(prev => prev.filter(msg => msg.id !== messageId));
+  }, []);
+
   const handleLogOut = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
@@ -144,11 +131,12 @@ useEffect(() => {
     setSelectedUser(null);
     setMessages([]);
     setUsers([]);
-    webSocketService.disconnect();
+    // Note: WebSocket disconnection should be handled by main app
   }, []);
 
   const sendTypingStatus = useCallback((recipientId: number, typing: boolean) => {
-    webSocketService.sendTypingStatus(recipientId, typing);
+    // This should be handled by the parent component that manages WebSocket
+    console.log('Typing status should be handled by parent component');
   }, []);
 
   const addMessage = useCallback((message: ChatMessage) => {
@@ -175,7 +163,8 @@ useEffect(() => {
     handleSendMessage,
     handleClearHistory,
     handleLogOut,
-    sendTypingStatus,
+    handleDeleteMessage, // Simplified version
+    sendTypingStatus,    // Simplified version
     addMessage,
   };
 };

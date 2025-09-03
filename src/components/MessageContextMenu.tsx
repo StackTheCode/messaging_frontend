@@ -6,7 +6,8 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
     message,
     position,
     onClose,
-    isVisible
+    isVisible,
+    onDelete
 }) => {
     const [showTaskModal, setShowTaskModal] = useState(false);
     const contextMenuRef = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         e.stopPropagation();
         if (message.pending) {
             // блокируем создание таска для неподтверждённых сообщений
-            console.warn("⏳ Сообщение ещё не отправлено на сервер, таск нельзя создать");
+            console.warn("⏳The message has not yet been sent to server, task can't be created");
             return;
         }
         setShowTaskModal(true);
@@ -69,6 +70,16 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
             console.log('Message copied to clipboard');
         } catch (error) {
             console.error('Failed to copy message:', error);
+        }
+        onClose();
+    };
+    const handleDeleteMessage = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (message.id) {
+            
+            onDelete(message.id); // ✅ calls parent’s delete handler
+        } else {
+            console.warn("Message has no ID, cannot delete");
         }
         onClose();
     };
@@ -125,6 +136,23 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
                         />
                     </svg>
                     Copy Message
+                </button>
+
+                <button
+                    onClick={handleDeleteMessage}
+                    disabled={!message.id} 
+                    className={`w-full text-left px-4 py-2 flex items-center gap-3 text-sm transition-colors
+      ${!message.id ? "opacity-50 cursor-not-allowed" : "hover:bg-gray-100"}`}
+                >
+                    <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                        />
+                    </svg>
+                    Delete Message
                 </button>
             </div>
 

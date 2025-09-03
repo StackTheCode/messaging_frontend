@@ -8,8 +8,9 @@ import { useFileUpload } from '../hooks/useFileUpload';
 import { useImageModal } from '../hooks/useImageModal';
 import { useTyping } from '../hooks/useTyping';
 import { filterMessagesBetweenUsers } from '../utils/utils';
+import { messageService } from '../services/messageService';
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ 
+export const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
   selectedUser,
   currentUser,
@@ -20,9 +21,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   showUserList,
   setShowUserList,
   sendTypingStatus,
+  onDeleteMessage
 }) => {
 
-   const [input, setInput] = useState('');
+  const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -30,7 +32,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   // Custom hooks
   const { tasks, tasksPanelOpen, toggleTasksPanel, deleteTask } = useTask();
   const { imageModalOpen, modalImageUrl, openImageModal, closeImageModal } = useImageModal();
-  
+
   const { handleInputChange: handleTypingInputChange, handleInputBlur, clearTyping } = useTyping(
     (typing: boolean) => {
       if (selectedUser) {
@@ -64,10 +66,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   useEffect(scrollToBottom, [messages]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value);
-    handleTypingInputChange(e.target.value);
-  };
+const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+  console.log('Input change:', value, 'Length:', value.length);
+  setInput(value);
+  
+  // Single call to typing handler  
+  handleTypingInputChange(value);
+};
+
+// Also add this useEffect to debug typing status changes:
+useEffect(() => {
+  console.log('Typing status in ChatWindow changed:', isOtherUserTyping);
+}, [isOtherUserTyping]);
+
 
   const handleClearHistory = () => {
     if (currentUser !== null && selectedUser !== null) {
@@ -123,11 +135,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   };
 
   const filteredMessages = filterMessagesBetweenUsers(messages, currentUser, selectedUser);
- const filteredTasks = tasks.filter(task => {
+  const filteredTasks = tasks.filter(task => {
     const relatedMessage = filteredMessages.find((msg: ChatMessage) => msg.id === task.messageId);
     return relatedMessage !== undefined;
   });
-  
+
   return (
     <div className="flex-1 flex flex-col w-full lg:w-3/4 h-full">
       {selectedUser ? (
@@ -206,7 +218,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 className="flex-1 overflow-y-auto p-3 lg:p-6 space-y-3 lg:space-y-4"
                 onClick={handleCloseContextMenu}
               >
-                
+
                 {filteredMessages.map((msg, i) => {
                   const messageTime = msg.timestamp
                     ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -405,6 +417,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         position={contextMenu.position}
         onClose={handleCloseContextMenu}
         isVisible={contextMenu.isVisible}
+        onDelete={() => onDeleteMessage(contextMenu.message.id!)}
       />
 
       {/* Image Modal */}

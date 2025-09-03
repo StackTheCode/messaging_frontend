@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useRef, useState } from 'react';
 import '../src/index.css'
 import type { ChatMessage, User, TypingStatusMessage } from './types/types';
@@ -7,13 +6,13 @@ import { ChatWindow } from './components/ChatWindow';
 import type { IMessage } from '@stomp/stompjs';
 import { useDebounce } from './hooks/useDebounce';
 import { useNavigate } from 'react-router-dom';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'; // Import the new components
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { TaskProvider } from './contexts/TaskContext';
 import { userService } from './hooks/userService';
 import { messageService } from './services/messageService';
 import { webSocketService } from './services/webSocketService';
+
 const ChatbotApp = () => {
-  
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -25,11 +24,11 @@ const ChatbotApp = () => {
   const selectedUserRef = useRef<User | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
- 
- // Mobile responsiveness state
+  // Mobile responsiveness state
   const [showUserList, setShowUserList] = useState(true);
+
   // --- Initial Setup (Token/UserId from localStorage) ---
-    useEffect(() => {
+  useEffect(() => {
     const storedToken = localStorage.getItem('token');
     const storedUserId = localStorage.getItem('userId');
     if (!storedToken || !storedUserId) return;
@@ -48,53 +47,89 @@ const ChatbotApp = () => {
     selectedUserRef.current = selectedUser;
   }, [selectedUser]);
 
-  // WebSocket connection management
+  // WebSocket connection management - SINGLE CONNECTION
   useEffect(() => {
     if (!token || !userId) return;
 
-const handlePrivateMessage = (message: IMessage) => {
-  const serverMessage: ChatMessage = JSON.parse(message.body);
+    const handlePrivateMessage = (message: IMessage) => {
+      const serverMessage: ChatMessage = JSON.parse(message.body);
 
-  setMessages(prev => {
-    // ищем pending сообщение по sender/recipient/content/type
-    const pendingIndex = prev.findIndex(
-      msg =>
-        msg.pending &&
-        msg.senderId === serverMessage.senderId &&
-        msg.recipientId === serverMessage.recipientId &&
-        msg.content === serverMessage.content &&
-        msg.messageType === serverMessage.messageType
-    );
+      setMessages(prev => {
+        // Find pending message by sender/recipient/content/type
+        const pendingIndex = prev.findIndex(
+          msg =>
+            msg.pending &&
+            msg.senderId === serverMessage.senderId &&
+            msg.recipientId === serverMessage.recipientId &&
+            msg.content === serverMessage.content &&
+            msg.messageType === serverMessage.messageType
+        );
 
-    if (pendingIndex !== -1) {
-      // заменяем pending на серверное
-      const newMessages = [...prev];
-      newMessages[pendingIndex] = { ...serverMessage, pending: false };
-      return newMessages;
-    } else {
-      // это новое сообщение от собеседника
-      return [...prev, serverMessage];
-    }
-  });
-};
-
-
-
+        if (pendingIndex !== -1) {
+          // Replace pending with server message
+          const newMessages = [...prev];
+          newMessages[pendingIndex] = { ...serverMessage, pending: false };
+          return newMessages;
+        } else {
+          // New message from other user
+          return [...prev, serverMessage];
+        }
+      });
+    };
 
     const handlePublicMessage = (msg: IMessage) => {
       setMessages(prev => [...prev, JSON.parse(msg.body)]);
     };
 
-    const handleTypingStatus = (msg: IMessage) => {
-      const typingStatus: TypingStatusMessage = JSON.parse(msg.body);
-      const activeUser = selectedUserRef.current;
-
-      if (activeUser && typingStatus.senderId === activeUser.id && typingStatus.senderId !== userId) {
+   
+  const handleTypingStatus = (msg: IMessage) => {
+    const typingStatus: TypingStatusMessage = JSON.parse(msg.body);
+    const activeUser = selectedUserRef.current;
+    if (activeUser && 
+        typingStatus.senderId === activeUser.id && 
+        typingStatus.senderId !== userId) {
+        
+        console.log('Typing status update:', typingStatus.typing, 'from user:', typingStatus.senderId);
         setIsOtherUserTyping(typingStatus.typing);
-      }
+        
+        // Auto-clear typing status after 3 seconds if stuck
+        if (typingStatus.typing) {
+          setTimeout(() => {
+            setIsOtherUserTyping(prev => {
+              if (prev && selectedUserRef.current?.id === typingStatus.senderId) {
+                console.log('Auto-clearing typing status');
+                return false;
+              }
+              return prev;
+            });
+          }, 3000);
+        }
+    }
+};
+
+    // NEW: Handle delete messages via WebSocket
+    const handleDeleteMessage = (msg: IMessage) => {
+      const deletePayload = JSON.parse(msg.body);
+      const deletedId = deletePayload.id;
+      
+      console.log('WebSocket delete received for message ID:', deletedId);
+      
+      setMessages(prev => {
+        const filtered = prev.filter(m => m.id !== deletedId);
+        console.log('Messages before delete:', prev.length, 'After delete:', filtered.length);
+        return filtered;
+      });
     };
 
-    webSocketService.connect(token, userId, handlePrivateMessage, handlePublicMessage, handleTypingStatus);
+    // Connect with all 4 handlers including delete
+    webSocketService.connect(
+      token, 
+      userId, 
+      handlePrivateMessage, 
+      handlePublicMessage, 
+      handleTypingStatus,
+      handleDeleteMessage // Add the delete handler
+    );
 
     return () => {
       webSocketService.disconnect();
@@ -149,31 +184,65 @@ const handlePrivateMessage = (message: IMessage) => {
   }, [selectedUser]);
 
   // Handlers
-const handleSendMessage = useCallback((content: string) => {
-  if (!content.trim() || !userId || !selectedUser) return;
+  const handleSendMessage = useCallback((content: string) => {
+    if (!content.trim() || !userId || !selectedUser) return;
 
-  // создаём pending сообщение
-  const chatMessage: ChatMessage = {
-    id: Date.now(),                // временный ID
-    senderId: userId,
-    recipientId: selectedUser.id,
-    content,
-    messageType: "CHAT",
-    timestamp: new Date().toISOString(),
-    pending: true
-  };
+    // Create pending message
+    const chatMessage: ChatMessage = {
+      id: Date.now(), // temporary ID
+      senderId: userId,
+      recipientId: selectedUser.id,
+      content,
+      messageType: "CHAT",
+      timestamp: new Date().toISOString(),
+      pending: true
+    };
 
-  // отображаем сразу
-  setMessages(prev => [...prev, chatMessage]);
+    // Display immediately
+    setMessages(prev => [...prev, chatMessage]);
 
-  // готовим сообщение к серверу (без временного id и pending)
-  const messageToSend = { ...chatMessage };
-  delete messageToSend.id;
-  delete messageToSend.pending;
+    // Prepare message for server (without temporary id and pending)
+    const messageToSend = { ...chatMessage };
+    delete messageToSend.id;
+    delete messageToSend.pending;
 
-  webSocketService.sendMessage(messageToSend);
-}, [userId, selectedUser]);
+    webSocketService.sendMessage(messageToSend);
+  }, [userId, selectedUser]);
 
+  // NEW: Centralized delete handler
+  const handleDeleteMessage = useCallback(async (messageId: number) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this message? This action cannot be undone."
+    );
+    if (!confirmDelete) return;
+
+    try {
+      // Optimistic update - remove from UI immediately
+      setMessages(prev => prev.filter(msg => msg.id !== messageId));
+      
+      const result = await messageService.deleteMessage(messageId);
+      
+      if (!result.success) {
+        console.error("Failed to delete message:", result.error);
+        // Revert optimistic update on failure
+        const historyData = await messageService.getChatHistory(userId!, selectedUser!.id);
+        setMessages(historyData);
+        alert(result.error || "Failed to delete message");
+      } else {
+        console.log("Message deleted successfully");
+        // WebSocket will broadcast the delete to other users
+        // Our own UI is already updated optimistically
+      }
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      // Revert optimistic update on error
+      if (userId && selectedUser) {
+        const historyData = await messageService.getChatHistory(userId, selectedUser.id);
+        setMessages(historyData);
+      }
+      alert("Failed to delete message.");
+    }
+  }, [userId, selectedUser]);
 
   const handleClearHistory = useCallback(async (user1Id: number, user2Id: number) => {
     try {
@@ -208,53 +277,54 @@ const handleSendMessage = useCallback((content: string) => {
   }, []);
 
   return (
-        <TaskProvider>
-   <div className="flex h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50">
-            <PanelGroup direction="horizontal">
-                {/* The UserList Panel */}
-                <Panel
-                    className={`${showUserList ? 'flex' : 'hidden'} lg:flex w-full lg:w-auto flex-col`}
-                    defaultSize={25}
-                    minSize={15}
-                >
-                    <UserList
-                        users={users}
-                        selectedUser={selectedUser}
-                        onSelectUser={(user) => {
-                            setSelectedUser(user);
-                            setShowUserList(false);
-                        }}
-                        searchQuery={searchQuery}
-                        onSearchChange={setSearchQuery}
-                        currentUser={userId}
-                        handleLogout={handleLogOut}
-                    />
-                </Panel>
-                
-                {/* The Resize Handle, only visible on large screens */}
-                <PanelResizeHandle className="w-2 bg-gray-300 hover:bg-gray-400 transition-colors duration-200 cursor-col-resize hidden lg:block" />
+    <TaskProvider>
+      <div className="flex h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50">
+        <PanelGroup direction="horizontal">
+          {/* The UserList Panel */}
+          <Panel
+            className={`${showUserList ? 'flex' : 'hidden'} lg:flex w-full lg:w-auto flex-col`}
+            defaultSize={25}
+            minSize={15}
+          >
+            <UserList
+              users={users}
+              selectedUser={selectedUser}
+              onSelectUser={(user) => {
+                setSelectedUser(user);
+                setShowUserList(false);
+              }}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              currentUser={userId}
+              handleLogout={handleLogOut}
+            />
+          </Panel>
+          
+          {/* The Resize Handle, only visible on large screens */}
+          <PanelResizeHandle className="w-2 bg-gray-300 hover:bg-gray-400 transition-colors duration-200 cursor-col-resize hidden lg:block" />
 
-                {/* The ChatWindow Panel */}
-                <Panel
-                    className={`${!showUserList ? 'flex' : 'hidden'} lg:flex flex-1`}
-                    minSize={50}
-                >
-                    <ChatWindow
-                    sendTypingStatus={sendTypingStatus}
-                        messages={messages}
-                        selectedUser={selectedUser}
-                        currentUser={userId}
-                        onSendMessage={handleSendMessage}
-                        isOtherUserTyping={isOtherUserTyping}
-                        onClearHistory={handleClearHistory}
-                        onNewFileMessage={handleNewFileMessage}
-                        showUserList={showUserList}
-                        setShowUserList={setShowUserList}
-                    />
-                </Panel>
-            </PanelGroup>
-        </div>
-        </TaskProvider> 
+          {/* The ChatWindow Panel */}
+          <Panel
+            className={`${!showUserList ? 'flex' : 'hidden'} lg:flex flex-1`}
+            minSize={50}
+          >
+            <ChatWindow
+              sendTypingStatus={sendTypingStatus}
+              messages={messages}
+              selectedUser={selectedUser}
+              currentUser={userId}
+              onSendMessage={handleSendMessage}
+              isOtherUserTyping={isOtherUserTyping}
+              onClearHistory={handleClearHistory}
+              onNewFileMessage={handleNewFileMessage}
+              showUserList={showUserList}
+              setShowUserList={setShowUserList}
+              onDeleteMessage={handleDeleteMessage} // Use centralized handler
+            />
+          </Panel>
+        </PanelGroup>
+      </div>
+    </TaskProvider> 
   )
 }
 

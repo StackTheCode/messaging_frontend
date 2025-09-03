@@ -25,6 +25,8 @@ onNewFileMessage :(message :ChatMessage) => void;
  showUserList: boolean;
   setShowUserList: (show: boolean) => void;
   sendTypingStatus:(recipientId: number, typing: boolean) => void;
+    onDeleteMessage: (messageId: number) => void; // ✅ new
+
 }
 
 
@@ -113,6 +115,8 @@ export interface MessageContextMenuProps {
   position: { x: number; y: number };
   onClose: () => void;
   isVisible: boolean;
+  onDelete: (id: number) => void; // 🔑 make required
+
 }
 
 export interface TaskCreationModalProps {
