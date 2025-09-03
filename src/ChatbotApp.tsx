@@ -1,7 +1,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import '../src/index.css'
-import { WsClient } from './wsClient';
 import type { ChatMessage, User, TypingStatusMessage } from './types/types';
 import { UserList } from './components/UserList';
 import { ChatWindow } from './components/ChatWindow';
@@ -10,15 +9,16 @@ import { useDebounce } from './hooks/useDebounce';
 import { useNavigate } from 'react-router-dom';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'; // Import the new components
 import { TaskProvider } from './contexts/TaskContext';
-
-
+import { userService } from './hooks/userService';
+import { messageService } from './services/messageService';
+import { webSocketService } from './services/webSocketService';
 const ChatbotApp = () => {
   
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const wsRef = useRef<WsClient | null>(null);
+  
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
@@ -29,7 +29,7 @@ const ChatbotApp = () => {
  // Mobile responsiveness state
   const [showUserList, setShowUserList] = useState(true);
   // --- Initial Setup (Token/UserId from localStorage) ---
-  useEffect(() => {
+    useEffect(() => {
     const storedToken = localStorage.getItem('token');
     const storedUserId = localStorage.getItem('userId');
     if (!storedToken || !storedUserId) return;
@@ -41,186 +41,171 @@ const ChatbotApp = () => {
 
     setToken(storedToken);
     setUserId(parseInt(storedUserId, 10));
-  }, []); // Runs once on mount
+  }, []);
 
-
-  // --- WebSocket Connection Management ---
+  // Keep selectedUserRef in sync with selectedUser
   useEffect(() => {
-    if (token === null || userId === null) return;
+    selectedUserRef.current = selectedUser;
+  }, [selectedUser]);
 
-    // Disconnect existing client if it exists before creating a new one
-    if (wsRef.current) {
-      wsRef.current.disconnect();
+  // WebSocket connection management
+  useEffect(() => {
+    if (!token || !userId) return;
+
+const handlePrivateMessage = (message: IMessage) => {
+  const serverMessage: ChatMessage = JSON.parse(message.body);
+
+  setMessages(prev => {
+    // ищем pending сообщение по sender/recipient/content/type
+    const pendingIndex = prev.findIndex(
+      msg =>
+        msg.pending &&
+        msg.senderId === serverMessage.senderId &&
+        msg.recipientId === serverMessage.recipientId &&
+        msg.content === serverMessage.content &&
+        msg.messageType === serverMessage.messageType
+    );
+
+    if (pendingIndex !== -1) {
+      // заменяем pending на серверное
+      const newMessages = [...prev];
+      newMessages[pendingIndex] = { ...serverMessage, pending: false };
+      return newMessages;
+    } else {
+      // это новое сообщение от собеседника
+      return [...prev, serverMessage];
     }
+  });
+};
 
-    const wsClient = new WsClient(token, userId);
-    wsRef.current = wsClient;
 
-    const onPrivateMessage = (msg: IMessage) => setMessages((prev) => [...prev, JSON.parse(msg.body)]);
-    const onPublicMessage = (msg: IMessage) => setMessages((prev) => [...prev, JSON.parse(msg.body)]);
 
-    // This callback relies on selectedUserRef.current which is updated via another useEffect
-    const onTypingStatusMessage = (msg: IMessage) => {
+
+    const handlePublicMessage = (msg: IMessage) => {
+      setMessages(prev => [...prev, JSON.parse(msg.body)]);
+    };
+
+    const handleTypingStatus = (msg: IMessage) => {
       const typingStatus: TypingStatusMessage = JSON.parse(msg.body);
-      const activeUser = selectedUserRef.current; // Use the ref for the latest selected user
+      const activeUser = selectedUserRef.current;
 
       if (activeUser && typingStatus.senderId === activeUser.id && typingStatus.senderId !== userId) {
         setIsOtherUserTyping(typingStatus.typing);
       }
     };
 
-    wsClient.connect(onPrivateMessage, onPublicMessage, onTypingStatusMessage);
+    webSocketService.connect(token, userId, handlePrivateMessage, handlePublicMessage, handleTypingStatus);
 
-    // Cleanup function for WebSocket client
     return () => {
-      if (wsRef.current) {
-        wsRef.current.disconnect();
-        wsRef.current = null;
-      }
+      webSocketService.disconnect();
     };
   }, [token, userId]);
 
-
-  // --- Keep selectedUserRef always up-to-date with the latest selectedUser state ---
-  useEffect(() => {
-    selectedUserRef.current = selectedUser;
-  }, [selectedUser]);
-
-
-  // --- Fetching Users (with Debounced Search) ---
+  // Fetch users with debounced search
   const fetchUsers = useCallback(async (query: string) => {
- 
     if (!token) return;
 
     try {
-      
-      const url = query ? `${import.meta.env.VITE_API_URL}/api/users/search?query=${encodeURIComponent(query)}` : `${import.meta.env.VITE_API_URL}/api/users`;
-      const response = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      const data = await response.json();
-      setUsers(data);
+      const fetchedUsers = query 
+        ? await userService.searchUsers(query) 
+        : await userService.getUsers();
+      setUsers(fetchedUsers);
     } catch (error) {
       console.error("Error fetching users:", error);
     }
   }, [token]);
 
-  // Debounced version of fetchUsers using the custom useDebounce hook
   const debouncedFetchUsers = useDebounce(fetchUsers, 300);
 
-  // Trigger debouncedFetchUsers whenever searchQuery changes
   useEffect(() => {
-    if (token) { // Only fetch if token is available
+    if (token) {
       debouncedFetchUsers(searchQuery);
     }
-  }, [searchQuery, token, debouncedFetchUsers]); // `debouncedFetchUsers` is a stable reference due to `useCallback`
+  }, [searchQuery, token, debouncedFetchUsers]);
 
-
-  // --- Fetching Chat History ---
+  // Fetch chat history when selected user changes
   useEffect(() => {
-    
     const fetchChatHistory = async () => {
-      const apiUrl =import.meta.env.VITE_API_URL
+      if (!userId || !selectedUser || !token) {
+        setMessages([]);
+        return;
+      }
 
-      if (userId !== null && selectedUser !== null && token) {
-        try {
-          const url = `${apiUrl}/api/messages/history/${userId}/${selectedUser.id}`;
-          const response = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-
-          if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          }
-
-          const historyData: ChatMessage[] = await response.json();
-          setMessages(historyData);
-        } catch (error) {
-          console.error("Error fetching chat history:", error);
-          setMessages([]);
-        }
-      } else {
+      try {
+        const historyData = await messageService.getChatHistory(userId, selectedUser.id);
+        setMessages(historyData);
+      } catch (error) {
+        console.error("Error fetching chat history:", error);
         setMessages([]);
       }
     };
 
     fetchChatHistory();
+  }, [selectedUser, userId, token]);
 
-  }, [selectedUser, userId, token]); // Dependencies: Re-fetch when selectedUser, userId, or token changes
-
-
-  // --- Reset Typing Status on Conversation Change ---
+  // Reset typing status when conversation changes
   useEffect(() => {
     setIsOtherUserTyping(false);
   }, [selectedUser]);
 
+  // Handlers
+const handleSendMessage = useCallback((content: string) => {
+  if (!content.trim() || !userId || !selectedUser) return;
 
-  // --- Send Message Handler (Memoized) ---
-  const handleSendMessage = useCallback((content: string) => {
-    if (!content.trim() || !wsRef.current || userId === null || !selectedUser) return;
+  // создаём pending сообщение
+  const chatMessage: ChatMessage = {
+    id: Date.now(),                // временный ID
+    senderId: userId,
+    recipientId: selectedUser.id,
+    content,
+    messageType: "CHAT",
+    timestamp: new Date().toISOString(),
+    pending: true
+  };
 
-    const chatMessage: ChatMessage = {
-        id: Date.now(),
-      senderId: userId,
-      recipientId: selectedUser.id,
-      content: content,
-      messageType: 'CHAT',
-      timestamp: new Date().toISOString()
-    };
+  // отображаем сразу
+  setMessages(prev => [...prev, chatMessage]);
 
-    setMessages(prevMessages => [...prevMessages, chatMessage]);
+  // готовим сообщение к серверу (без временного id и pending)
+  const messageToSend = { ...chatMessage };
+  delete messageToSend.id;
+  delete messageToSend.pending;
 
-    wsRef.current.send({
-      destination: '/app/chat.send',
-      body: JSON.stringify(chatMessage),
-    });
-  }, [userId, selectedUser]); // Dependencies for handleSendMessage
+  webSocketService.sendMessage(messageToSend);
+}, [userId, selectedUser]);
 
 
-  // --- Clear History Handler (Memoized) ---
   const handleClearHistory = useCallback(async (user1Id: number, user2Id: number) => {
-    if (token) {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/messages/history/${user1Id}/${user2Id}`, {
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to clear chat history: ${response.status}`);
-        }
-
+    try {
+      const success = await messageService.clearChatHistory(user1Id, user2Id);
+      if (success) {
         setMessages([]);
         console.log(`Chat history cleared between ${user1Id} and ${user2Id}`);
-      } catch (error) {
-        console.error("Error clearing chat history:", error);
       }
+    } catch (error) {
+      console.error("Error clearing chat history:", error);
     }
-  }, [token]);
-
-
+  }, []);
 
   const handleLogOut = useCallback(() => {
     localStorage.removeItem('token');
     localStorage.removeItem('userId');
-    setToken(null)
-    setUserId(null)
-    setSelectedUser(null)
+    setToken(null);
+    setUserId(null);
+    setSelectedUser(null);
     setMessages([]);
     setUsers([]);
-    if(wsRef.current){
-      wsRef.current.disconnect()
-    }
-    navigate('/')
-  }, [navigate])
+    webSocketService.disconnect();
+    navigate('/');
+  }, [navigate]);
 
   const handleNewFileMessage = useCallback((message: ChatMessage) => {
     setMessages(prevMessages => [...prevMessages, message]);
-  }, []); // No dependencies needed as setMessages is stable
+  }, []);
 
+  const sendTypingStatus = useCallback((recipientId: number, typing: boolean) => {
+    webSocketService.sendTypingStatus(recipientId, typing);
+  }, []);
 
   return (
         <TaskProvider>
@@ -255,11 +240,11 @@ const ChatbotApp = () => {
                     minSize={50}
                 >
                     <ChatWindow
+                    sendTypingStatus={sendTypingStatus}
                         messages={messages}
                         selectedUser={selectedUser}
                         currentUser={userId}
                         onSendMessage={handleSendMessage}
-                        wsRef={wsRef}
                         isOtherUserTyping={isOtherUserTyping}
                         onClearHistory={handleClearHistory}
                         onNewFileMessage={handleNewFileMessage}

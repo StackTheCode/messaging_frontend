@@ -54,6 +54,7 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
       dispatch({ type: 'SET_LOADING', payload: false });
     }
   };
+  
 
   const createTask = async (taskData: CreateTaskData): Promise<Task> => {
     try {
@@ -65,6 +66,8 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
       throw error;
     }
   };
+  
+
 
   const updateTaskStatus = async (taskId: number, status: Task["status"]): Promise<void> => {
     try {
@@ -75,6 +78,18 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
       throw error;
     }
   };
+
+const deleteTask = async(taskId:number ) =>{
+  try {
+       await taskApi.deleteTask(taskId);
+
+    dispatch({type:"REMOVE_TASK", payload : taskId});
+
+  } catch (error) {
+  console.error("Failed to remove task: ", error)  
+  }
+}
+
 
   const toggleTasksPanel = (): void => {
     dispatch({ type: 'TOGGLE_TASKS_PANEL' });
@@ -90,7 +105,9 @@ export const TaskProvider: React.FC<TaskProviderProps> = ({ children }) => {
       createTask,
       updateTaskStatus,
       loadTasks,
-      toggleTasksPanel
+      toggleTasksPanel,
+      deleteTask,
+    
     }}>
       {children}
     </TaskContext.Provider>

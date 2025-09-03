@@ -6,7 +6,10 @@ export const taskApi = {
     const response = await apiClient.post<Task>("/api/tasks", taskData);
     return response.data;
   },
-
+  async createTaskFromMessage(messageId: number): Promise<Task> {
+    const response = await apiClient.post<Task>(`/api/tasks/from-message/${messageId}`);
+    return response.data;
+  },
   // Fixed: getTasks returns paginated response, not Task[]
   async getTasks(status: string | null = null, page = 0, size = 50): Promise<PaginatedResponse<Task>> {
     const response = await apiClient.get<PaginatedResponse<Task>>("/api/tasks", {
@@ -25,7 +28,8 @@ export const taskApi = {
   },
 
   // Fixed: taskId should be number
-  async deleteTask(taskId: number): Promise<void> {
-    await apiClient.delete(`/api/tasks/${taskId}`);
-  },
+ async deleteTask(taskId: number): Promise<Task[]> {
+  const response = await apiClient.delete<Task[]>(`/api/tasks/${taskId}`);
+  return response.data; // Actually return the remaining tasks
+},
 };

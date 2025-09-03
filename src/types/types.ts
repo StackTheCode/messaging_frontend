@@ -2,13 +2,14 @@ import type { ReactNode, RefObject } from "react";
 import type { WsClient } from "../wsClient";
 
 export interface ChatMessage {
-  id: number;
+  id?: number;
   senderId: number;
   recipientId?: number;
   content: string;
   messageType: 'CHAT' | 'JOIN' | 'LEAVE' | "FILE";
   timestamp : string,
   fileName?:string,
+  pending?:boolean
 }
 
 
@@ -17,12 +18,15 @@ export interface ChatMessage {
   selectedUser: User | null;
   currentUser: number | null;
   onSendMessage: (content: string) => void;
-  wsRef: React.RefObject<WsClient | null>;
+  
   isOtherUserTyping: boolean,
   onClearHistory: (user1Id: number, user2Id: number) => void;
 onNewFileMessage :(message :ChatMessage) => void;
  showUserList: boolean;
-  setShowUserList: (show: boolean) => void;}
+  setShowUserList: (show: boolean) => void;
+  sendTypingStatus:(recipientId: number, typing: boolean) => void;
+}
+
 
 export interface UserListProps {
   users: User[];
@@ -73,6 +77,8 @@ export interface TaskContextType extends TaskState {
   updateTaskStatus: (taskId: number, status: Task['status']) => Promise<void>;
   loadTasks: () => Promise<void>;
   toggleTasksPanel: () => void;
+  deleteTask:(taskId:number) =>Promise<void>,
+  
 }
 
 export interface CreateTaskData {

@@ -27,7 +27,17 @@ export const TaskCreationModal: React.FC<TaskCreationModalProps> = ({
    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    
+      if (!message.id) {
+    console.error('Cannot create task: message has no ID');
+    return;
+  }
+
+    console.log('=== TASK CREATION DEBUG ===');
+  console.log('Message object:', message);
+  console.log('Message ID being sent:', message.id);
+  console.log('Message senderId:', message.senderId);
+  console.log('Message recipientId:', message.recipientId);
+  console.log('Current user ID:', /* your current user ID variable */);
     try {
       const taskData: CreateTaskData = {
         messageId: message.id,

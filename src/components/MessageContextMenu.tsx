@@ -16,9 +16,9 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
         const handleClickOutside = (e: MouseEvent) => {
             // Only close if clicking outside context menu AND modal is not open
             if (
-                isVisible && 
+                isVisible &&
                 !showTaskModal &&
-                contextMenuRef.current && 
+                contextMenuRef.current &&
                 !contextMenuRef.current.contains(e.target as Node)
             ) {
                 onClose();
@@ -42,7 +42,7 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
                 document.addEventListener('mousedown', handleClickOutside);
                 document.addEventListener('keydown', handleEscapeKey);
             }, 50);
-            
+
             return () => {
                 clearTimeout(timeoutId);
                 document.removeEventListener('mousedown', handleClickOutside);
@@ -53,6 +53,11 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
 
     const handleMarkAsTask = (e: React.MouseEvent) => {
         e.stopPropagation();
+        if (message.pending) {
+            // блокируем создание таска для неподтверждённых сообщений
+            console.warn("⏳ Сообщение ещё не отправлено на сервер, таск нельзя создать");
+            return;
+        }
         setShowTaskModal(true);
         // Don't close the context menu immediately - let the modal handle it
     };
@@ -89,27 +94,32 @@ export const MessageContextMenu: React.FC<MessageContextMenuProps> = ({
             >
                 <button
                     onClick={handleMarkAsTask}
-                    className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3 text-sm transition-colors"
+                    disabled={message.pending} // 🔑 кнопка неактивна для pending
+                    className={`w-full text-left px-4 py-2 flex items-center gap-3 text-sm transition-colors
+      ${message.pending
+                            ? "opacity-50 cursor-not-allowed"
+                            : "hover:bg-gray-100"}`}
                 >
                     <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                             strokeWidth={2}
                             d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5V3a2 2 0 012-2h2a2 2 0 012 2v2"
                         />
                     </svg>
                     Mark as Task
                 </button>
-                
+
+
                 <button
                     onClick={handleCopyMessage}
                     className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-3 text-sm transition-colors"
                 >
                     <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path 
-                            strokeLinecap="round" 
-                            strokeLinejoin="round" 
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
                             strokeWidth={2}
                             d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2-2"
                         />

@@ -1,33 +1,46 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { ChatMessage } from '../types/types';
 import type { ChatWindowProps } from '../types/types';
-import { ArrowLeft, CheckSquare, FileText, MoreVertical, Paperclip, Send, X } from 'lucide-react';
+import { ArrowLeft, CheckSquare, FileText, MoreVertical, Paperclip, Send, Trash2, X } from 'lucide-react';
 import { useTask } from '../contexts/TaskContext'; // Import task context
 import { MessageContextMenu } from './MessageContextMenu';// Import context menu
+import { useFileUpload } from '../hooks/useFileUpload';
+import { useImageModal } from '../hooks/useImageModal';
+import { useTyping } from '../hooks/useTyping';
+import { filterMessagesBetweenUsers } from '../utils/utils';
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
+export const ChatWindow: React.FC<ChatWindowProps> = ({ 
+  messages,
   selectedUser,
   currentUser,
   onSendMessage,
-  wsRef,
   isOtherUserTyping,
   onClearHistory,
   onNewFileMessage,
   showUserList,
   setShowUserList,
+  sendTypingStatus,
 }) => {
 
-  const [input, setInput] = useState('');
-  const [typingTimeout, setTypingTimeout] = useState<NodeJS.Timeout | null>(null);
+   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [menuOpen, setMenuOpen] = useState<boolean>(false)
+  const [menuOpen, setMenuOpen] = useState<boolean>(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [imageModalOpen, setImageModalOpen] = useState(false)
-  const [modalImageUrl, setModalImageUrl] = useState('');
 
+  // Custom hooks
+  const { tasks, tasksPanelOpen, toggleTasksPanel, deleteTask } = useTask();
+  const { imageModalOpen, modalImageUrl, openImageModal, closeImageModal } = useImageModal();
+  
+  const { handleInputChange: handleTypingInputChange, handleInputBlur, clearTyping } = useTyping(
+    (typing: boolean) => {
+      if (selectedUser) {
+        sendTypingStatus(selectedUser.id, typing);
+      }
+    }
+  );
 
-  // Task-related state
-  const { tasks, tasksPanelOpen, toggleTasksPanel } = useTask();
+  const { handleFileChange } = useFileUpload(currentUser, selectedUser, onNewFileMessage);
+
   const [contextMenu, setContextMenu] = useState<{
     message: ChatMessage;
     position: { x: number; y: number };
@@ -38,29 +51,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
     isVisible: false
   });
 
-  const sendTypingStatus = (typingStatus: boolean) => {
-    if (wsRef.current && selectedUser && currentUser) {
-      const payload = {
-        senderId: currentUser,
-        recipientId: selectedUser.id,
-        typing: typingStatus,
-      };
-      wsRef.current.send({
-        destination: '/app/chat.typing',
-        body: JSON.stringify(payload),
-      });
-    }
-  }
+  // Cleanup typing on unmount or user change
   useEffect(() => {
     return () => {
-      if (typingTimeout) {
-        clearTimeout(typingTimeout);
-        sendTypingStatus(false);
-      }
+      clearTyping();
     };
-  }, [selectedUser, typingTimeout]);
-
-
+  }, [selectedUser, clearTyping]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -68,127 +64,27 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
 
   useEffect(scrollToBottom, [messages]);
 
-
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
-
-    // Only send typing status if there's actual content
-    if (e.target.value.trim()) {
-      // Send typing started
-      sendTypingStatus(true);
-
-      // Clear existing timeout
-      if (typingTimeout) {
-        clearTimeout(typingTimeout);
-      }
-
-      // Set new timeout to stop typing after 1 second of inactivity
-      const timeout = setTimeout(() => {
-        sendTypingStatus(false);
-      }, 1000);
-
-      setTypingTimeout(timeout);
-    } else {
-      // If input is empty, stop typing immediately
-      if (typingTimeout) {
-        clearTimeout(typingTimeout);
-        setTypingTimeout(null);
-      }
-      sendTypingStatus(false);
-    }
+    handleTypingInputChange(e.target.value);
   };
 
   const handleClearHistory = () => {
     if (currentUser !== null && selectedUser !== null) {
-      const confirmClear = window.confirm("Are you sure you want to delete this chat history ? This action cannot be undone")
+      const confirmClear = window.confirm("Are you sure you want to delete this chat history? This action cannot be undone");
       if (confirmClear) {
-        onClearHistory(currentUser, selectedUser.id)
-        setMenuOpen(false)
+        onClearHistory(currentUser, selectedUser.id);
+        setMenuOpen(false);
       }
-    }
-  }
-
-
-  const handleSend = () => {
-    if (input.trim()) {
-      // Clear typing timeout and send stop typing
-      if (typingTimeout) {
-        clearTimeout(typingTimeout);
-        setTypingTimeout(null);
-      }
-      sendTypingStatus(false);
-
-      onSendMessage(input);
-      setInput('');
     }
   };
 
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (!file || !wsRef.current || !selectedUser || !currentUser) return;
-
-    const formData = new FormData()
-    formData.append('file', file)
-
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        console.error("Authentication token not found")
-        return;
-      }
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/files/upload`, {
-        method: "POST",
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      })
-
-      if (!response.ok) {
-        throw new Error(`File upload failed! Status: ${response.status}`)
-      }
-      const fileUrl = await response.text();
-      const fileMessage: ChatMessage = {
-        id: Date.now(),
-        senderId: currentUser,
-        recipientId: selectedUser.id,
-        content: fileUrl,
-        fileName: file.name,
-        messageType: "FILE",
-        timestamp: new Date().toISOString()
-      }
-      onNewFileMessage(fileMessage)
-      wsRef.current.send({
-        destination: '/app/chat.send',
-        body: JSON.stringify(fileMessage),
-      });
-    } catch (error) {
-      console.error("File upload error:", error);
-
+  const handleSend = () => {
+    if (input.trim()) {
+      clearTyping();
+      onSendMessage(input);
+      setInput('');
     }
-    finally {
-      event.target.value = '';
-
-    }
-  }
-  const openImageModal = (imageUrl: string) => {
-    setModalImageUrl(imageUrl)
-    setImageModalOpen(true)
-  }
-
-  const closeImageModal = () => {
-    setModalImageUrl('')
-    setImageModalOpen(false)
-  }
-
-  const handleInputBlur = () => {
-    if (typingTimeout) {
-      clearTimeout(typingTimeout);
-      setTypingTimeout(null);
-    }
-    sendTypingStatus(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -196,12 +92,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
       handleSend();
     }
   };
-  // Mobile navigation function
+
   const handleBackToUsers = () => {
     setShowUserList(true);
   };
 
-  // Context menu handlers
   const handleContextMenu = (e: React.MouseEvent, message: ChatMessage) => {
     e.preventDefault();
     setContextMenu({
@@ -215,16 +110,25 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
     setContextMenu(prev => ({ ...prev, isVisible: false }));
   };
 
-  const filteredMessages = messages.filter(
-    msg => (msg.senderId === currentUser && msg.recipientId === selectedUser?.id) ||
-      (msg.senderId === selectedUser?.id && msg.recipientId === currentUser)
-  );
-  const filteredTasks = tasks.filter(task => {
-    const relatedMessage = filteredMessages.find(msg => msg.id === task.messageId);
+  const handleDeleteTask = async (taskId: number) => {
+    const confirmDelete = window.confirm("Are you sure you want to delete this task? This action cannot be undone.");
+    if (confirmDelete) {
+      try {
+        await deleteTask(taskId);
+        console.log('Task deleted successfully');
+      } catch (error) {
+        console.error('Failed to delete task:', error);
+      }
+    }
+  };
+
+  const filteredMessages = filterMessagesBetweenUsers(messages, currentUser, selectedUser);
+ const filteredTasks = tasks.filter(task => {
+    const relatedMessage = filteredMessages.find((msg: ChatMessage) => msg.id === task.messageId);
     return relatedMessage !== undefined;
   });
-
-    return (
+  
+  return (
     <div className="flex-1 flex flex-col w-full lg:w-3/4 h-full">
       {selectedUser ? (
         <>
@@ -298,10 +202,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
             {/* Chat Messages Area */}
             <div className={`flex-1 flex flex-col min-h-0 ${tasksPanelOpen ? 'lg:w-2/3' : 'w-full'}`}>
               {/* Messages Container - Fixed scrolling */}
-              <div 
+              <div
                 className="flex-1 overflow-y-auto p-3 lg:p-6 space-y-3 lg:space-y-4"
                 onClick={handleCloseContextMenu}
               >
+                
                 {filteredMessages.map((msg, i) => {
                   const messageTime = msg.timestamp
                     ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -432,9 +337,19 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ messages,
                     filteredTasks.map((task) => (
                       <div
                         key={task.id}
-                        className="p-3 bg-white/20 rounded-xl border border-white/20"
+                        className="p-3 bg-white/20 rounded-xl border border-white/20 group hover:bg-white/30 transition-all duration-200"
                       >
-                        <h4 className="font-medium text-gray-800 mb-1">{task.title}</h4>
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-medium text-gray-800 flex-1 pr-2">{task.title}</h4>
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 rounded-full transition-all duration-200 flex-shrink-0"
+                            title="Delete task"
+                            aria-label="Delete task"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </button>
+                        </div>
                         {task.description && (
                           <p className="text-sm text-gray-600 mb-2 font-light">{task.description}</p>
                         )}

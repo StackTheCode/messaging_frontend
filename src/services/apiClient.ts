@@ -1,5 +1,10 @@
 import axios, { type AxiosInstance } from 'axios';
 
+export interface ApiResponse<T = any> {
+  data?: T;
+  error?: string;
+  status: number;
+}
 // Create the main axios instance
 const apiClient: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
