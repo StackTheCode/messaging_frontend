@@ -8,7 +8,7 @@ import { useFileUpload } from '../hooks/useFileUpload';
 import { useImageModal } from '../hooks/useImageModal';
 import { useTyping } from '../hooks/useTyping';
 import { filterMessagesBetweenUsers } from '../utils/utils';
-import { messageService } from '../services/messageService';
+
 
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
