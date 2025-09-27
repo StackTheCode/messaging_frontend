@@ -1,16 +1,27 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react';
 
 import axios from 'axios'
+import GoogleButton from '../components/GoogleButton';
 
 export default function Login() {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams();
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('')
     const [showPassword, setShowPassword] = useState(false);
-
     const [error, setError] = useState('')
+
+
+    useEffect(() => {
+        const errorParam = searchParams.get('error');
+        if (errorParam === 'oauth2_error') {
+            setError('Google sign-in failed. Please try again.');
+        } else if (errorParam === 'oauth2_failed') {
+            setError('Authentication failed. Please try again.');
+        }
+    }, [searchParams]);
 
     const handleSignup = () => {
         navigate('/sign-up')
@@ -52,7 +63,16 @@ export default function Login() {
                         {error}
                     </div>
                 )}
+                <GoogleButton text="Sign in with Google" />
 
+                <div className="relative mb-6">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300/30"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-4 bg-white/10 text-gray-500 font-light">or continue with email</span>
+                    </div>
+                </div>
                 <div className="mb-6">
                     <label className="block mb-3 text-sm font-light text-gray-600 tracking-wide">
                         Username
@@ -88,7 +108,7 @@ export default function Login() {
                         >
                             {showPassword ? (
                                 <Eye className="w-5 h-5" />
-                                
+
                             ) : (
                                 <EyeOff className="w-5 h-5" />
                             )}

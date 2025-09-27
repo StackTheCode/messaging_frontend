@@ -126,3 +126,6 @@ export interface TaskCreationModalProps {
   modalRef: RefObject<HTMLDivElement | null>; 
 
 }
+export interface GoogleButtonProps {
+   text?: string;
+}

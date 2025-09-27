@@ -5,6 +5,7 @@ import ChatbotApp from './ChatbotApp.tsx'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import Login from './pages/Login.tsx'
 import SignUp from './pages/SignUp.tsx'
+import OAuth2RedirectHandler from './components/OAuth2RedirectHandler.tsx'
 const isAuthenticated = () => {
   return !!localStorage.getItem('token'); // simple check
 };
@@ -18,6 +19,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/sign-up" element={<SignUp/>}/>
         <Route path="/chat"
       element={isAuthenticated() ? <ChatbotApp/> : <Navigate to="/"/>} />
+      <Route path='/oauth2/redirect' element={<OAuth2RedirectHandler/>}/>
       </Routes>
 
     </BrowserRouter>

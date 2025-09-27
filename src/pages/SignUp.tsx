@@ -1,43 +1,54 @@
 import axios from 'axios'
 import { Eye, EyeOff } from 'lucide-react';
-import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import GoogleButton from '../components/GoogleButton';
 
 const SignUp = () => {
-    const navigate = useNavigate()
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-    const [error, setError] = useState('');
-    const [email, setEmail] = useState('');
-    const handleSignup = () => {
-        navigate('/')
-    }
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        try {
-            const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
-                username,
-                password,
-                email
-            })
-            console.log(response.data)
-            console.log('User ID:', response.data.userId);
-            console.log('Token:', response.data.token);
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
 
-            localStorage.setItem('token', response.data.token)
-            localStorage.setItem('userId', response.data.userId)
-            navigate('/')
-        } catch (err) {
-            setError('Invalid credentials')
-        }
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'oauth2_error') {
+      setError('Google sign-in failed. Please try again.');
+    } else if (errorParam === 'oauth2_failed') {
+      setError('Authentication failed. Please try again.');
     }
+  }, [searchParams])
+  const handleSignup = () => {
+    navigate('/')
+  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+        username,
+        password,
+        email
+      })
+      console.log(response.data)
+      console.log('User ID:', response.data.userId);
+      console.log('Token:', response.data.token);
 
-    const togglePasswordVisibility = () => {
-        setShowPassword(!showPassword);
-    };
-    return (
-       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50 flex items-center justify-center p-4">
+      localStorage.setItem('token', response.data.token)
+      localStorage.setItem('userId', response.data.userId)
+      navigate('/')
+    } catch (err) {
+      setError('Invalid credentials')
+    }
+  }
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-gray-50 to-stone-50 flex items-center justify-center p-4">
       <div className="bg-white/10 backdrop-blur-md p-12 rounded-3xl border border-white/10 shadow-2xl shadow-black/2 w-full max-w-md">
         <h2 className="text-3xl font-light mb-8 text-center text-gray-800 tracking-wide">Sign Up</h2>
 
@@ -47,6 +58,16 @@ const SignUp = () => {
           </div>
         )}
 
+        <GoogleButton text="Sign up with Google" />
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300/30"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-4 bg-white/10 text-gray-500 font-light">or continue with email</span>
+          </div>
+        </div>
         <div className="mb-6">
           <label className="block mb-3 text-sm font-light text-gray-600 tracking-wide">
             Username
@@ -98,7 +119,7 @@ const SignUp = () => {
                 <Eye className="w-5 h-5" />
               ) : (
                 <EyeOff className="w-5 h-5" />
-                
+
               )}
             </button>
           </div>
@@ -132,7 +153,7 @@ const SignUp = () => {
         </button>
       </div>
     </div>
-    )
+  )
 }
 
 export default SignUp
