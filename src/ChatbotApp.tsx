@@ -16,8 +16,11 @@ const ChatbotApp = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+const [currentUserData, setCurrentUserData] = useState<User | null>(null);
+
   const [token, setToken] = useState<string | null>(null);
   const [userId, setUserId] = useState<number | null>(null);
   const [isOtherUserTyping, setIsOtherUserTyping] = useState(false);
@@ -26,6 +29,19 @@ const ChatbotApp = () => {
 
   // Mobile responsiveness state
   const [showUserList, setShowUserList] = useState(true);
+
+  useEffect(() => {
+  if (!token || !userId) return;
+
+  (async () => {
+    try {
+      const me = await userService.getUserById(userId);
+      setCurrentUserData(me); // set state with full user object
+    } catch (error) {
+      console.error("Error fetching current user:", error);
+    }
+  })();
+}, [token, userId]);
 
   // --- Initial Setup (Token/UserId from localStorage) ---
   useEffect(() => {
@@ -76,22 +92,22 @@ const ChatbotApp = () => {
         }
       });
     };
-
+    fetchConversationPartners();
     const handlePublicMessage = (msg: IMessage) => {
       setMessages(prev => [...prev, JSON.parse(msg.body)]);
     };
 
-   
-  const handleTypingStatus = (msg: IMessage) => {
-    const typingStatus: TypingStatusMessage = JSON.parse(msg.body);
-    const activeUser = selectedUserRef.current;
-    if (activeUser && 
-        typingStatus.senderId === activeUser.id && 
+
+    const handleTypingStatus = (msg: IMessage) => {
+      const typingStatus: TypingStatusMessage = JSON.parse(msg.body);
+      const activeUser = selectedUserRef.current;
+      if (activeUser &&
+        typingStatus.senderId === activeUser.id &&
         typingStatus.senderId !== userId) {
-        
+
         console.log('Typing status update:', typingStatus.typing, 'from user:', typingStatus.senderId);
         setIsOtherUserTyping(typingStatus.typing);
-        
+
         // Auto-clear typing status after 3 seconds if stuck
         if (typingStatus.typing) {
           setTimeout(() => {
@@ -104,16 +120,16 @@ const ChatbotApp = () => {
             });
           }, 3000);
         }
-    }
-};
+      }
+    };
 
-    // NEW: Handle delete messages via WebSocket
+    //  Handle delete messages via WebSocket
     const handleDeleteMessage = (msg: IMessage) => {
       const deletePayload = JSON.parse(msg.body);
       const deletedId = deletePayload.id;
-      
+
       console.log('WebSocket delete received for message ID:', deletedId);
-      
+
       setMessages(prev => {
         const filtered = prev.filter(m => m.id !== deletedId);
         console.log('Messages before delete:', prev.length, 'After delete:', filtered.length);
@@ -123,10 +139,10 @@ const ChatbotApp = () => {
 
     // Connect with all 4 handlers including delete
     webSocketService.connect(
-      token, 
-      userId, 
-      handlePrivateMessage, 
-      handlePublicMessage, 
+      token,
+      userId,
+      handlePrivateMessage,
+      handlePublicMessage,
       handleTypingStatus,
       handleDeleteMessage // Add the delete handler
     );
@@ -136,27 +152,46 @@ const ChatbotApp = () => {
     };
   }, [token, userId]);
 
-  // Fetch users with debounced search
-  const fetchUsers = useCallback(async (query: string) => {
+  const fetchConversationPartners = useCallback(async () => {
     if (!token) return;
+    try {
+      const partners = await userService.getConversationPartners(userId)
+      setUsers(partners)
+    } catch (error) {
+      console.error("Error fetching conversation partners:", error);
+    }
+  }, [token, userId])
+
+
+  // Fetch users with debounced search
+  const fetchUsers = useCallback(async (query: string):Promise<User[]> => {
+    if (!token) return [];
 
     try {
-      const fetchedUsers = query 
-        ? await userService.searchUsers(query) 
+     return query
+        ? await userService.searchUsers(query)
         : await userService.getUsers();
-      setUsers(fetchedUsers);
+      
     } catch (error) {
       console.error("Error fetching users:", error);
+      return []; 
     }
   }, [token]);
 
-  const debouncedFetchUsers = useDebounce(fetchUsers, 300);
+  const debouncedQuery= useDebounce(fetchUsers, 300);
 
-  useEffect(() => {
-    if (token) {
-      debouncedFetchUsers(searchQuery);
-    }
-  }, [searchQuery, token, debouncedFetchUsers]);
+useEffect(() => {
+  if (!token) return;
+
+  if (searchQuery.trim()) {
+    debouncedQuery(searchQuery).then(setAllUsers);
+  } else {
+    setAllUsers([]);
+    fetchConversationPartners();
+  }
+}, [searchQuery, token, debouncedQuery, fetchConversationPartners]);
+
+
 
   // Fetch chat history when selected user changes
   useEffect(() => {
@@ -207,7 +242,8 @@ const ChatbotApp = () => {
     delete messageToSend.pending;
 
     webSocketService.sendMessage(messageToSend);
-  }, [userId, selectedUser]);
+    fetchConversationPartners();
+  }, [userId, selectedUser,fetchConversationPartners]);
 
   // NEW: Centralized delete handler
   const handleDeleteMessage = useCallback(async (messageId: number) => {
@@ -219,9 +255,9 @@ const ChatbotApp = () => {
     try {
       // Optimistic update - remove from UI immediately
       setMessages(prev => prev.filter(msg => msg.id !== messageId));
-      
+
       const result = await messageService.deleteMessage(messageId);
-      
+
       if (!result.success) {
         console.error("Failed to delete message:", result.error);
         // Revert optimistic update on failure
@@ -249,12 +285,13 @@ const ChatbotApp = () => {
       const success = await messageService.clearChatHistory(user1Id, user2Id);
       if (success) {
         setMessages([]);
+        fetchConversationPartners();
         console.log(`Chat history cleared between ${user1Id} and ${user2Id}`);
       }
     } catch (error) {
       console.error("Error clearing chat history:", error);
     }
-  }, []);
+  }, [fetchConversationPartners]);
 
   const handleLogOut = useCallback(() => {
     localStorage.removeItem('token');
@@ -270,10 +307,17 @@ const ChatbotApp = () => {
 
   const handleNewFileMessage = useCallback((message: ChatMessage) => {
     setMessages(prevMessages => [...prevMessages, message]);
-  }, []);
+    fetchConversationPartners()
+  }, [fetchConversationPartners]);
 
   const sendTypingStatus = useCallback((recipientId: number, typing: boolean) => {
     webSocketService.sendTypingStatus(recipientId, typing);
+  }, []);
+  const handleSelectUserFromSearch = useCallback((user: User) => {
+    setSelectedUser(user);
+    setShowNewMessageModal(false);
+    setShowUserList(false);
+    setSearchQuery('');
   }, []);
 
   return (
@@ -287,19 +331,25 @@ const ChatbotApp = () => {
             minSize={15}
           >
             <UserList
+            
               users={users}
+              allUsers={allUsers}
               selectedUser={selectedUser}
               onSelectUser={(user) => {
                 setSelectedUser(user);
                 setShowUserList(false);
               }}
+              onSelectUserFromSearch={handleSelectUserFromSearch}
+              showNewMessageModal={showNewMessageModal}
+              setShowNewMessageModal={setShowNewMessageModal}
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
               currentUser={userId}
               handleLogout={handleLogOut}
+              currentUserData={currentUserData}
             />
           </Panel>
-          
+
           {/* The Resize Handle, only visible on large screens */}
           <PanelResizeHandle className="w-2 bg-gray-300 hover:bg-gray-400 transition-colors duration-200 cursor-col-resize hidden lg:block" />
 
@@ -319,12 +369,13 @@ const ChatbotApp = () => {
               onNewFileMessage={handleNewFileMessage}
               showUserList={showUserList}
               setShowUserList={setShowUserList}
-              onDeleteMessage={handleDeleteMessage} // Use centralized handler
+              onDeleteMessage={handleDeleteMessage} 
+              
             />
           </Panel>
         </PanelGroup>
       </div>
-    </TaskProvider> 
+    </TaskProvider>
   )
 }
 

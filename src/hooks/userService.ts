@@ -12,6 +12,16 @@ export const userService = {
       return [];
     }
   },
+  async getUserById(userId: number): Promise<User | null> {
+    try {
+      const response = await apiClient.get<User>(`/api/users/${userId}`)
+      return response.data
+    } catch (error) {
+      console.error('Error getting current users id:', error);
+      return null;
+
+    }
+  },
 
   async searchUsers(query: string): Promise<User[]> {
     try {
@@ -23,5 +33,19 @@ export const userService = {
       console.error('Error searching users:', error);
       return [];
     }
+  },
+  async getConversationPartners(userId: number | null): Promise<User[]> {
+    if (!userId) return [];
+    try {
+      const response = await apiClient.get<User[]>(`/api/users/conversations/${userId}`, {
+        params: { userId }
+      });
+      return response.data;
+
+    } catch (error) {
+      console.error("Error fetching messaged usersa: ", error)
+      return [];
+    }
+
   }
 };

@@ -7,37 +7,45 @@ export interface ChatMessage {
   recipientId?: number;
   content: string;
   messageType: 'CHAT' | 'JOIN' | 'LEAVE' | "FILE";
-  timestamp : string,
-  fileName?:string,
-  pending?:boolean
+  timestamp: string,
+  fileName?: string,
+  pending?: boolean
 }
 
 
- export interface ChatWindowProps {
+export interface ChatWindowProps {
   messages: ChatMessage[];
   selectedUser: User | null;
   currentUser: number | null;
   onSendMessage: (content: string) => void;
-  
+
   isOtherUserTyping: boolean,
   onClearHistory: (user1Id: number, user2Id: number) => void;
-onNewFileMessage :(message :ChatMessage) => void;
- showUserList: boolean;
+  onNewFileMessage: (message: ChatMessage) => void;
+  showUserList: boolean;
   setShowUserList: (show: boolean) => void;
-  sendTypingStatus:(recipientId: number, typing: boolean) => void;
-    onDeleteMessage: (messageId: number) => void; // ✅ new
+  sendTypingStatus: (recipientId: number, typing: boolean) => void;
+  onDeleteMessage: (messageId: number) => void; // ✅ new
 
 }
 
 
 export interface UserListProps {
-  users: User[];
+  users: User[]; //Users you have chatted with 
+  allUsers: User[]; // All users for search
   selectedUser: User | null;
   onSelectUser: (user: User) => void;
+  onSelectUserFromSearch: (user: User) => void;
+  currentUserData?: User | null; 
+
   currentUser: number | null;
-  searchQuery:string;
-  onSearchChange:(query :string) => void,
-  handleLogout:() => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void,
+  handleLogout: () => void;
+  showNewMessageModal: boolean; 
+
+  setShowNewMessageModal: (show: boolean) => void;
+
 }
 
 
@@ -55,7 +63,7 @@ export interface TypingStatusMessage {
   recipientId: number;
   typing: boolean;
 }
- export interface Task {
+export interface Task {
   id: number;
   userId: number;
   messageId: number;
@@ -79,8 +87,8 @@ export interface TaskContextType extends TaskState {
   updateTaskStatus: (taskId: number, status: Task['status']) => Promise<void>;
   loadTasks: () => Promise<void>;
   toggleTasksPanel: () => void;
-  deleteTask:(taskId:number) =>Promise<void>,
-  
+  deleteTask: (taskId: number) => Promise<void>,
+
 }
 
 export interface CreateTaskData {
@@ -91,7 +99,7 @@ export interface CreateTaskData {
   priority?: Task['priority'];
 }
 
-export type TaskAction = 
+export type TaskAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_TASKS'; payload: Task[] }
   | { type: 'ADD_TASK'; payload: Task }
@@ -100,7 +108,7 @@ export type TaskAction =
   | { type: 'TOGGLE_TASKS_PANEL' }
   | { type: 'SET_TASKS_PANEL'; payload: boolean };
 
-  export interface TaskProviderProps {
+export interface TaskProviderProps {
   children: ReactNode;
 }
 export interface PaginatedResponse<T> {
@@ -123,9 +131,9 @@ export interface TaskCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
   message: ChatMessage;
-  modalRef: RefObject<HTMLDivElement | null>; 
+  modalRef: RefObject<HTMLDivElement | null>;
 
 }
 export interface GoogleButtonProps {
-   text?: string;
+  text?: string;
 }
