@@ -10,6 +10,7 @@ import { useTyping } from '../hooks/useTyping';
 import { filterMessagesBetweenUsers } from '../utils/utils';
 
 
+
 export const ChatWindow: React.FC<ChatWindowProps> = ({
   messages,
   selectedUser,
@@ -66,19 +67,19 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 
   useEffect(scrollToBottom, [messages]);
 
-const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
-  console.log('Input change:', value, 'Length:', value.length);
-  setInput(value);
-  
-  // Single call to typing handler  
-  handleTypingInputChange(value);
-};
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    console.log('Input change:', value, 'Length:', value.length);
+    setInput(value);
 
-// Also add this useEffect to debug typing status changes:
-useEffect(() => {
-  console.log('Typing status in ChatWindow changed:', isOtherUserTyping);
-}, [isOtherUserTyping]);
+    // Single call to typing handler  
+    handleTypingInputChange(value);
+  };
+
+  // Also add this useEffect to debug typing status changes:
+  useEffect(() => {
+    console.log('Typing status in ChatWindow changed:', isOtherUserTyping);
+  }, [isOtherUserTyping]);
 
 
   const handleClearHistory = () => {
@@ -224,7 +225,7 @@ useEffect(() => {
                     ? new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : '';
                   const isSender = msg.senderId === currentUser;
-
+                
                   return (
                     <div
                       key={i}
@@ -273,12 +274,20 @@ useEffect(() => {
                           <p className='font-normal text-sm lg:text-base break-words'>{msg.content}</p>
                         )}
 
-                        {messageTime && (
-                          <span className={`text-xs mt-1 block ${isSender ? 'text-white' : 'text-gray-500'
-                            }`}>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className={`text-xs ${isSender ? 'text-white' : 'text-gray-500'}`}>
                             {messageTime}
                           </span>
-                        )}
+                          {isSender && (
+                            <span className="text-xs ml-2">
+                              {msg.read ? (
+                                <span className="text-violet-500 font-bold">✓✓</span>
+                              ) : (
+                                <span className="text-white/50 font-bold">✓✓</span>
+                              )}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

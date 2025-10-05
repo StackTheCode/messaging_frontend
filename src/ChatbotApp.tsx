@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import '../src/index.css'
-import type { ChatMessage, User, TypingStatusMessage } from './types/types';
+import type { ChatMessage, User, TypingStatusMessage, ConversationUser } from './types/types';
 import { UserList } from './components/UserList';
 import { ChatWindow } from './components/ChatWindow';
 import type { IMessage } from '@stomp/stompjs';
@@ -15,7 +15,7 @@ import { webSocketService } from './services/webSocketService';
 const ChatbotApp = () => {
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<ConversationUser[]>([]);
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showNewMessageModal, setShowNewMessageModal] = useState(false);
@@ -204,6 +204,11 @@ useEffect(() => {
       try {
         const historyData = await messageService.getChatHistory(userId, selectedUser.id);
         setMessages(historyData);
+
+        await messageService.markMessagesAsRead(selectedUser.id,userId);
+          console.log('Marking messages as read:', selectedUser.id, userId); // Add this
+
+      fetchConversationPartners();
       } catch (error) {
         console.error("Error fetching chat history:", error);
         setMessages([]);

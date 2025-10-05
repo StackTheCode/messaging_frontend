@@ -4,27 +4,27 @@ import { MessageSquarePlus, Search, X } from "lucide-react";
 export const UserList: React.FC<UserListProps> = ({ users,
   allUsers,
   selectedUser,
-   onSelectUser,
-   onSelectUserFromSearch,
-    currentUser,
-    currentUserData,
-     searchQuery,
-      onSearchChange,
-      showNewMessageModal,
-      setShowNewMessageModal,
-      handleLogout }) => {
-const loggedInUser = currentUserData;
+  onSelectUser,
+  onSelectUserFromSearch,
+  currentUser,
+  currentUserData,
+  searchQuery,
+  onSearchChange,
+  showNewMessageModal,
+  setShowNewMessageModal,
+  handleLogout }) => {
+  const loggedInUser = currentUserData;
 
   const filteredUsers = users.filter(user => user.id !== currentUser);
-    const [logoutMenuOpen, setLogoutMenuOpen] = useState(false); // New state for logout menu visibility
+  const [logoutMenuOpen, setLogoutMenuOpen] = useState(false); // New state for logout menu visibility
   const logoutMenuRef = useRef<HTMLDivElement>(null);
 
-const onLogout = () =>{
-  handleLogout()
-  setLogoutMenuOpen(false)
-}
+  const onLogout = () => {
+    handleLogout()
+    setLogoutMenuOpen(false)
+  }
   return (
- <div className="bg-white/20 backdrop-blur-md flex flex-col h-full min-w-0 overflow-x-hidden relative">
+    <div className="bg-white/20 backdrop-blur-md flex flex-col h-full min-w-0 overflow-x-hidden relative">
 
       {/* Header */}
       <div className="px-4 py-3 border-b border-white/20 flex-shrink-0 flex items-center justify-between">
@@ -41,40 +41,88 @@ const onLogout = () =>{
       {/* User list */}
       <ul className="flex-1 overflow-y-auto min-w-0 overflow-x-hidden">
         {filteredUsers.length > 0 ? (
-          filteredUsers.map((user) => (
-            <li
-              key={user.id}
-              onClick={() => onSelectUser(user)}
-              className={`relative p-4 cursor-pointer transition-all duration-300 font-light tracking-wide rounded-xl ${
-                selectedUser?.id === user.id
-                  ? "bg-white/40 backdrop-blur-md shadow-inner shadow-white/30 scale-[1.02]"
-                  : "hover:bg-white/20"
-              }`}
-            >
-              <div className="flex items-center space-x-3 min-w-0">
-                <div className="flex-shrink-0">
-                  <span
-                    className={`inline-flex items-center justify-center h-8 w-8 rounded-full text-white text-sm font-light transition-colors duration-300 ${
-                      selectedUser?.id === user.id
-                        ? "bg-gray-700/90"
-                        : "bg-gray-500/80"
-                    }`}
-                  >
-                    {user.username.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <span
-                  className={`truncate transition-colors duration-300 ${
-                    selectedUser?.id === user.id
-                      ? "text-gray-800 font-medium"
-                      : "text-gray-700"
+          filteredUsers.map((user) => {
+
+            const conversationUser = user as any; // Cast to access lastMessage properties
+
+            const formatTimestamp = (timestamp?: string) => {
+              if (!timestamp) return '';
+              const date = new Date(timestamp);
+              const now = new Date();
+              const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+
+              if (diffInHours < 24) {
+                return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+              } else if (diffInHours < 168) {
+                return date.toLocaleDateString('en-US', { weekday: 'short' });
+              } else {
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              }
+            };
+
+            const truncateMessage = (content?: string) => {
+              if (!content) return '';
+              return content.length > 30 ? content.substring(0, 30) + '...' : content;
+            };
+
+            return (
+              <li
+                key={user.id}
+                onClick={() => onSelectUser(user)}
+                className={`relative p-4 cursor-pointer transition-all duration-300 font-light tracking-wide rounded-xl ${selectedUser?.id === user.id
+                    ? "bg-white/40 backdrop-blur-md shadow-inner shadow-white/30 scale-[1.02]"
+                    : "hover:bg-white/20"
                   }`}
-                >
-                  {user.username}
-                </span>
-              </div>
-            </li>
-          ))
+              >
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="flex-shrink-0">
+                    <span
+                      className={`inline-flex items-center justify-center h-10 w-10 rounded-full text-white text-sm font-light transition-colors duration-300 ${selectedUser?.id === user.id
+                          ? "bg-gray-700/90"
+                          : "bg-gray-500/80"
+                        }`}
+                    >
+                      {user.username.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span
+                        className={`truncate transition-colors duration-300 font-medium ${selectedUser?.id === user.id
+                            ? "text-gray-800"
+                            : "text-gray-700"
+                          }`}
+                      >
+                        {user.username}
+                      </span>
+                      {conversationUser.lastMessageTimestamp && (
+                        <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+                          {formatTimestamp(conversationUser.lastMessageTimestamp)}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      {conversationUser.lastMessageContent && (
+                        <p className="text-sm text-gray-600 truncate flex-1">
+                          {conversationUser.lastMessageSenderId === currentUser && (
+                            <span className="text-gray-500">You: </span>
+                          )}
+                          {conversationUser.lastMessageType === 'FILE'
+                            ? '📎 File'
+                            : truncateMessage(conversationUser.lastMessageContent)}
+                        </p>
+                      )}
+                      {conversationUser.unreadCount && conversationUser.unreadCount > 0 && (
+                        <span className="ml-2 bg-blue-600 text-white text-xs font-bold rounded-full px-2 py-1 flex-shrink-0">
+                          {conversationUser.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </li>
+            );
+          })
         ) : (
           <li className="p-8 text-gray-500 font-light text-center">
             <MessageSquarePlus className="w-12 h-12 text-gray-300 mx-auto mb-3" />

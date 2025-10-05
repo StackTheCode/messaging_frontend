@@ -1,6 +1,6 @@
 // services/userService.ts
 import { apiClient } from '../services/apiClient';
-import type { User } from '../types/types';
+import type { ConversationUser, User } from '../types/types';
 
 export const userService = {
   async getUsers(): Promise<User[]> {
@@ -34,10 +34,10 @@ export const userService = {
       return [];
     }
   },
-  async getConversationPartners(userId: number | null): Promise<User[]> {
+  async getConversationPartners(userId: number | null): Promise<ConversationUser[]> {
     if (!userId) return [];
     try {
-      const response = await apiClient.get<User[]>(`/api/users/conversations/${userId}`, {
+      const response = await apiClient.get<ConversationUser[]>(`/api/users/conversations/${userId}`, {
         params: { userId }
       });
       return response.data;

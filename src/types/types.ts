@@ -9,7 +9,8 @@ export interface ChatMessage {
   messageType: 'CHAT' | 'JOIN' | 'LEAVE' | "FILE";
   timestamp: string,
   fileName?: string,
-  pending?: boolean
+  pending?: boolean,
+  read?:boolean
 }
 
 
@@ -56,6 +57,15 @@ export type MessagesListProps = {
 export interface User {
   id: number;
   username: string;
+}
+
+export interface ConversationUser extends User{
+    lastMessageContent?: string;
+  lastMessageTimestamp?: string;
+  lastMessageSenderId?: number;
+  lastMessageType?: string;
+  unreadCount?: number; // Add this
+
 }
 
 export interface TypingStatusMessage {

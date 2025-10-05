@@ -62,4 +62,14 @@ export const messageService = {
         }
     },
 
+
+    async markMessagesAsRead(senderId: number, recipientId:number) : Promise<void>{
+        try {
+         await apiClient.put<void>(`/api/messages/mark-read/${senderId}/${recipientId}`);
+            
+        } catch (error) {
+            console.error("Error while marking message as read ", error)
+        }
+    }
+
 }
